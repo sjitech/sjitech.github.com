@@ -12,7 +12,7 @@ Octopressを知っていない方もいると思うが、始まる前に少しOc
 
 Octopressとは？
 ---
-[Octopress](http://octopress.org/)は最近人気上昇のボログエンジンである。特にhackerたちに流行している。膨大なWordPressに対して不満をもって、より簡単、hackerらしいブログツールを望んでいる中でOctopressを生み出した。<br />
+[Octopress](http://octopress.org/)は最近人気上昇のブログエンジンである。特にhackerたちに流行している。膨大なWordPressに対して不満をもって、より簡単、hackerらしいブログツールを望んでいる中でOctopressを生み出した。<br />
 Octopressはrubyとgitを利用して、[Markdown](http://ja.wikipedia.org/wiki/Markdown)記法のtextをhtmlページに変換する。[Github](https://github.com/)のpage serviceを利用して、簡単にブログを公開できる。Githubを利用しなくてもrsync、[Heroku](https://www.heroku.com/)のpage serivceでもブログを構築できる。<br />
 ここでGithubのpage serviceを利用する前提で本ブログに投稿の作業を解説する。
 
@@ -61,6 +61,7 @@ $ rake new_post["記事タイトル"] # Creates source/_posts/yyyy-MM-dd-記事�
 markdownは幾つかのオンラインエディタ(例：[markable](http://markable.in/))を利用できる。Macなら[Mou](http://mouapp.com/)を強く推奨する。<br />
 markdown文法は[JOHN GRUBERのブログ](http://daringfireball.net/projects/markdown/syntax.php)に参考ください。和訳は[ここ](http://blog.2310.net/archives/6)にご参考ください。<br />
 
+##### コードブロック
 Octopressにコードブロックは以下のように挿入する。
 
     ``` ruby
@@ -69,11 +70,67 @@ Octopressにコードブロックは以下のように挿入する。
 
 上記のコードは以下のように表示される。
 
-
 ``` ruby
 puts 'hello markdown!'
 ```
 
+またはtagを使用する。
+{% raw %}
+    {% codeblock [title] [lang:language] [url] [link text] %}
+    code snippet
+    {% endcodeblock %}
+{% endraw %}
+
+例：
+{% raw %}
+    {% codeblock Time to be Awesome - awesome.rb %}
+    puts "Awesome!" unless lame
+    {% endcodeblock %}
+{% endraw %}
+
+以下のように表示する。
+
+{% codeblock Time to be Awesome - awesome.rb %}
+puts "Awesome!" unless lame
+{% endcodeblock %}
+
+##### 画像
+tagを使う。
+
+{% raw %}
+    {% img [class names] /path/to/image [width] [height] [title text [alt text]] %}
+{% endraw %}
+
+例：
+
+{% raw %}
+    {% img http://www.sji-inc.jp/Portals/0/images/index/top-img02.jpg %}
+    {% img left /images/sji_logo.png #2 %}
+    {% img right /images/sji_outline.jpg Shinagawa Seaside East Tower #3 %}
+{% endraw %}
+
+中央寄せに表示する画像：<br />
+{% img http://www.sji-inc.jp/Portals/0/images/index/top-img02.jpg %}<br />
+<br />
+{% img left /images/sji_logo.png #2 %}
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+{% img right /images/sji_outline.jpg Shinagawa Seaside East Tower #3 %}<br />
+右寄せに表示する画像<br />
+右寄せに表示する画像<br />
+右寄せに表示する画像<br />
+右寄せに表示する画像<br />
+右寄せに表示する画像<br />
+
+画像ファイルをsource/imagesフォルダーに置いてください。
+
+##### 改行
 markdownにhtmlタグも使えるが、極力的に避けたほうがいいと思う。改行の時に&lt;br /&gt;を使っても良い。
 
 #### 途中の内容をプレビュー
@@ -105,4 +162,10 @@ $ git push origin source
 ```
 
 では、さっそく記事を投稿しましょう。
+
+
+参考リンク
+---
+- [Octopressのインストールから運用管理まで](http://tokkonopapa.github.io/blog/2011/12/30/octopress-on-github-and-bitbucket/)
+- [Markdown記法](http://kojika17.com/2013/01/starting-markdown.html)
 
