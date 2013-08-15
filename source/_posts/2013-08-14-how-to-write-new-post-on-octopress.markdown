@@ -45,6 +45,7 @@ $ ruby --version # 現在ruby versionを調べる
 $ gem install bundler # 依存ライブラリをインストール
 $ rbenv rehash
 $ bundle install
+$ rake setup_github_pages # デプロイ準備フォルダーの作成
 ```
 
 新規記事
