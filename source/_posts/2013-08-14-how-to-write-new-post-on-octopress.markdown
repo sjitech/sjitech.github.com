@@ -3,12 +3,15 @@ layout: post
 title: "How to write new post on octopress"
 date: 2013-08-14 14:14
 comments: true
-categories: OpenSource
+author: Haidong Wang
+categories: [OpenSource]
 ---
 
 
 ここでOctopressで新規記事を投稿する方法を紹介する。<br />
 Octopressを知っていない方もいると思うが、始まる前に少しOctopressを紹介してから進めましょう。
+
+<!-- more -->
 
 Octopressとは？
 ---
@@ -21,7 +24,8 @@ Octopressはrubyとgitを利用して、[Markdown](http://ja.wikipedia.org/wiki/
 Windows環境はruby gemの相性がよくないので、Mac OSXまたはLinux環境を推奨する。<br />
 ruby環境は[RVM](https://rvm.io/)と[rbenv](http://rbenv.org/)があるが、ここでMac OSXのrbenvを例として解説する。
 
-Octopressの環境を構築する。[ここ](http://octopress.org/docs/setup/)を参考してください。<br />
+#### Octopressの環境構築
+まず、Octopressの[ドキュメント](http://octopress.org/docs/setup/)を参考してください。<br />
 事前準備：
 
   * Git
@@ -131,7 +135,7 @@ tagを使う。
 画像ファイルをsource/imagesフォルダーに置いてください。
 
 ##### 改行
-markdownにhtmlタグも使えるが、極力的に避けたほうがいいと思う。改行の時に&lt;br /&gt;を使っても良い。
+markdownにhtmlタグも使えるが、極力的に避けたほうがいいと思う。ただ、改行の時に&lt;br /&gt;を使っても良い。
 
 #### 途中の内容をプレビュー
 
@@ -168,4 +172,5 @@ $ git push origin source
 ---
 - [Octopressのインストールから運用管理まで](http://tokkonopapa.github.io/blog/2011/12/30/octopress-on-github-and-bitbucket/)
 - [Markdown記法](http://kojika17.com/2013/01/starting-markdown.html)
+- [Octopressで記事を投稿するまでの手順](http://blog.4uing.net/octopress-post/)
 
