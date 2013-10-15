@@ -452,7 +452,7 @@ Code_attribute {
 01E0: **39** 00 02 00 01 00 00 00 0B 2A B7 00 01 2A 10 1E 9........*...*..
 
 attribute_lengthはCode_attributeにattribute_name_indexとattribute_lengthを除いたバイト数です。<br />
-上のバイトデータによると、<init>のCode_attributeの長さは0x39バイトです。
+上のバイトデータによると、&lt;init&gt;のCode_attributeの長さは0x39バイトです。
 
 01E0: 39 **00 02 00 01** 00 00 00 0B 2A B7 00 01 2A 10 1E 9........*...*..
 
@@ -467,7 +467,7 @@ doubleとlongのデータは64ビットなので、max_stackとmax_localsを計�
 
 code_lengthは0x0bです。メソッドコードはcode[11]に置かれます。Code_attributeの構成によって、codeタイプはu1です。<br />
 u1の範囲は0x00 ~ 0xff(0 ~ 255)です。現在約200個のJVM命令を定義しています。<br />
-exception_table_lengthとexception_tableは例外情報です。<init>は例外宣言がありませんので、exception_table_lengthは0です。
+exception_table_lengthとexception_tableは例外情報です。&lt;init&gt;は例外宣言がありませんので、exception_table_lengthは0です。
 
 01F0: B5 00 02 B1 **00 00** 00 02 00 10 00 00 00 0A 00 02 ................
 
