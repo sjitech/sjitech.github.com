@@ -345,7 +345,8 @@ Sampleクラス情報のインデックスです。
 01A0: 2F 4F 62 6A 65 63 74 00 21 00 05 00 06 **00 00** 00 /Object.!.......
 
 + インスタンス変数とクラス変数<br />
-Sampleクラスは2つのインスタンス変数と1つのクラス変数（合わせて3つ）があります。親クラスの変数を含まないことを注意してください。
+Sampleクラスは2つのインスタンス変数と1つのクラス変数（合わせて3つ）があります。親クラスの変数を含まないことを注意してください。<br />
+変数の構造は上のfield_infoです。
 
 01A0: 2F 4F 62 6A 65 63 74 00 21 00 05 00 06 00 00 **00** /Object.!.......<br />
 01B0: **03** 00 02 00 07 00 08 00 00 00 19 00 09 00 08 00 ................
@@ -354,8 +355,148 @@ Sampleクラスは2つのインスタンス変数と1つのクラス変数（合
 
 {% img /images/brisk/name_field_info.png [private String name] %}
 
-+ メソッド
+もっと複雑な例としてクラス変数AOP_CLASS_SUFFIXを解析しましょう。
 
+    public static final String AOP_CLASS_SUFFIX = "$$_brisk_aop_enhanced";
+
+AOP_CLASS_SUFFIXのaccess_flagsはACC_PUBLIC | ACC_STATIC | ACC_FINAL (0x0001 | 0x0008 | 0x0010) = 0x19です。
+
+01B0: 03 00 02 00 07 00 08 00 00 **00 19** 00 09 00 08 00 ................
+
+name_indexは0x09です。上の定数一覧によって、#9 = Utf8 AOP_CLASS_SUFFIXです。
+
+01B0: 03 00 02 00 07 00 08 00 00 00 19 **00 09** 00 08 00 ................
+
+descriptor_indexは0x08ですが、上の定数一覧によって、#8 = Utf8 Ljava/lang/String;(java.lang.Stringインスタンス)です。
+
+01B0: 03 00 02 00 07 00 08 00 00 00 19 00 09 **00 08** 00 ................
+
+次のattributes_countは0x0001です。1つの属性はあります。
+
+01B0: 03 00 02 00 07 00 08 00 00 00 19 00 09 00 08 **00** ................<br />
+01C0: **01** 00 0A 00 00 00 02 00 04 00 04 00 0B 00 0C 00 ................
+
+次の2バイトは0x000aです。上の定数プールの#10によると"ConstantValue"の属性です。<br />
+[ConstantValue](http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2)の構造は以下のようです。
+
+{% codeblock lang:c %}
+ConstantValue_attribute {
+    u2 attribute_name_index;
+    u4 attribute_length;
+    u2 constantvalue_index;
+}
+{% endcodeblock %}
+
+attribute_name_indexはConstantValueの定数プールのインデックです。attribute_lengthは固定で2です。
+
+01C0: 01 00 0A **00 00 00 02** 00 04 00 04 00 0B 00 0C 00 ................
+
+constantvalue_indexは0x04です。定数プールによると、#4 = String #30 //  $$_brisk_aop_enhancedです。AOP_CLASS_SUFFIXの初期値ですね。
+
+01C0: 01 00 0A 00 00 00 02 **00 04** 00 04 00 0B 00 0C 00 ................
+
+他の変数は同じな方法で解析できます。
+
++ メソッド<br />
+コンパイラで自動生成したコンストラクターを含めて、methods_countは0x04です。
+
+01D0: 00 **00 04** 00 01 00 0D 00 0E 00 01 00 0F 00 00 00 ................
+
+一番目のmethod_infoの内容を見てみましょう。method_infoの構造を上に参照できます。<br />
+access_flagsは0x01です。
+
+01D0: 00 00 04 **00 01** 00 0D 00 0E 00 01 00 0F 00 00 00 ................
+
+[メソッドのアクセスフラグ一覧](http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6)によると、ACC_PUBLICは0x0001です。
+
+01D0: 00 00 04 00 01 **00 0D** 00 0E 00 01 00 0F 00 00 00 ................
+
+name_indexは0x0dです。上の定数プールによると、#13 = Utf8 <init>です。自動生成したデフォルト・コンストラクターです。
+
+01D0: 00 00 04 00 01 00 0D **00 0E** 00 01 00 0F 00 00 00 ................
+
+descriptor_indexは0x0eなので、定数プールの#14 = Utf8  ()Vです。デフォルト・コンストラクターはパラメータ無し、戻り値voidです。<br />
+次のattributes_countは0x01です。
+
+01D0: 00 00 04 00 01 00 0D 00 0E **00 01** 00 0F 00 00 00 ................
+
+次の2バイトはattribute_name_indexです。定数プールの0x0fは#15 = Utf8 Codeです。<br />
+それによって、属性タイプは[Code_attribute](http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.3)です。
+
+01D0: 00 00 04 00 01 00 0D 00 0E 00 01 **00 0F** 00 00 00 ................
+
+Code_attributeの構造は以下のようです。
+
+{% codeblock lang:c %}
+Code_attribute {
+    u2 attribute_name_index;
+    u4 attribute_length;
+    u2 max_stack;
+    u2 max_locals;
+    u4 code_length;
+    u1 code[code_length];
+    u2 exception_table_length;
+    {   u2 start_pc;
+        u2 end_pc;
+        u2 handler_pc;
+        u2 catch_type;
+    } exception_table[exception_table_length];
+    u2 attributes_count;
+    attribute_info attributes[attributes_count];
+}
+{% endcodeblock %}
+
+かなり複雑な構造ですね。メソッドに仮想マシンの命令を表す構造体です。<br />
+
+01D0: 00 00 04 00 01 00 0D 00 0E 00 01 00 0F **00 00 00** ................<br />
+01E0: **39** 00 02 00 01 00 00 00 0B 2A B7 00 01 2A 10 1E 9........*...*..
+
+attribute_lengthはCode_attributeにattribute_name_indexとattribute_lengthを除いたバイト数です。<br />
+上のバイトデータによると、<init>のCode_attributeの長さは0x39バイトです。
+
+01E0: 39 **00 02 00 01** 00 00 00 0B 2A B7 00 01 2A 10 1E 9........*...*..
+
+次のmax_stackは0x02です。max_localsは0x01です。JVMでメソッドをframeに実行されます。<br />
+frameにローカル変数用の配列と操作命令スタックはあります。変数配列はメソッドパラメータ、ローカル変数（中間結果）を保存します。<br />
+操作スタックは仮想マシンの命令と操作数（変数配列からロードされる）を順番でロードして実行します。結果を変数配列仁保存し、命令と操作数をクリアし、次の命令を処理します。<br />
+メソッドのすべてのコードを実行する時、変数配列の最大長さはmax_localsと呼ばれます。操作スタックの最大長さはmax_stackと呼ばれます。<br />
+doubleとlongのデータは64ビットなので、max_stackとmax_localsを計算するときに注意しなければなりません。<br />
+詳しいJVMのランタイム仕組みは次回に解説させて頂きます。
+
+01E0: 39 00 02 00 01 **00 00 00 0B** 2A B7 00 01 2A 10 1E 9........*...*..
+
+code_lengthは0x0bです。メソッドコードはcode[11]に置かれます。Code_attributeの構成によって、codeタイプはu1です。<br />
+u1の範囲は0x00 ~ 0xff(0 ~ 255)です。現在約200個のJVM命令を定義しています。<br />
+exception_table_lengthとexception_tableは例外情報です。<init>は例外宣言がありませんので、exception_table_lengthは0です。
+
+01F0: B5 00 02 B1 **00 00** 00 02 00 10 00 00 00 0A 00 02 ................
+
+次のattributes_countは0x02です。
+
+01F0: B5 00 02 B1 00 00 **00 02** 00 10 00 00 00 0A 00 02 ................
+
+1つ目の属性のインデックは0x10です。定数プールの#16はUtf8 LineNumberTableです。
+
+01F0: B5 00 02 B1 00 00 00 02 **00 10** 00 00 00 0A 00 02 ................
+
+[LineNumberTable](http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.12)の構造は以下のようです。
+
+
+{% codeblock lang:c %}
+LineNumberTable_attribute {
+    u2 attribute_name_index;
+    u4 attribute_length;
+    u2 line_number_table_length;
+    {   u2 start_pc;
+        u2 line_number;
+    } line_number_table[line_number_table_length];
+}
+{% endcodeblock %}
+
+attribute_lengthはattribute_name_indexとattribute_length以外のバイト数です。<br />
+バイトデータによって、attribute_lengthは10(0x0a)です。
+
+01F0: B5 00 02 B1 00 00 00 02 00 10 **00 00 00 0A** 00 02 ................
 
 
 
