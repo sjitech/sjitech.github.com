@@ -506,6 +506,52 @@ line_number_tableは次の8バイトとです。start_pcはJVM命令の番号で
 
 0200: **00 00 00 08 00 04 00 0E** 00 11 00 00 00 0C 00 01 ................
 
+次の属性は定数プールの#17(0x11) = Utf8 LocalVariableTableです。
+
+0200: 00 00 00 08 00 04 00 0E **00 11** 00 00 00 0C 00 01 ................
+
+LocalVariableTableの構造は以下のようです。
+
+{% codeblock lang:c %}
+LocalVariableTable_attribute {
+    u2 attribute_name_index;
+    u4 attribute_length;
+    u2 local_variable_table_length;
+    {   u2 start_pc;
+        u2 length;
+        u2 name_index;
+        u2 descriptor_index;
+        u2 index;
+    } local_variable_table[local_variable_table_length];
+}
+{% endcodeblock %}
+
+attribute_lengthは0x0cです。local_variable_table_lengthは0x01です。local_variable_tableに1つの変数があることはわかります。
+
+0200: 00 00 00 08 00 04 00 0E 00 11 **00 00 00 0C 00 01** ................
+
+次の10バイトはlocal_variable_table[1]の変数です。
+
+0210: **00 00 00 0B 00 12 00 13 00 00** 00 01 00 14 00 15 ................
+
+定数プールとlocal_variable_tableの構造によって、
+
+
+{% codeblock lang:c %}
+    {
+        u2 start_pc;            // 0x0000
+        u2 length;              // 0x000b
+        u2 name_index;          // 0x0012    #18 = Utf8               this
+        u2 descriptor_index;    // 0x0013    #19 = Utf8               Lnet/codemelon/brisk/demo/jvm/Sample;
+        u2 index;               // 0x0000
+    }
+{% endcodeblock %}
+
+start_pc + lengthはメソッド実行の開始JVMコマンドの位置を表します。name_indexとdescriptor_indexはSampleインスタンスthisのことが分かります。<br />
+indexはthis変数はローカル変数配列の最初（インデックス0）位置に置かれることを示します。JVMではすべてのメソッド実行frameの変数配列の0にthis変数を置かれます。
+
+
+
 
 ## まとめ
 
