@@ -5,9 +5,15 @@ title: "Build a Java framework from scratch(1)"
 date: 2013-10-09 15:02
 comments: true
 categories: [Java]
+tags: [Java Framework JVM]
+description: Javaクラスのバイナリレイアウト解説
+keywords: Java, JVM
 ---
 
-> 本連載はスクラッチで軽量Javaフレームワークの設計、実現方法を解説します。Javaの知識を深めながら、Spring FrameworkのようなAOPxDIフレームワークをゼロから作成してみます。<br />
+<p class="info">
+本連載はスクラッチで軽量Javaフレームワークの設計、実現方法を解説します。Javaの知識を深めながら、Spring FrameworkのようなAOPxDIフレームワークをゼロから作成してみます。
+</p>
+
 
 自力でAOPとDI機能を実現するため、ある程度のJVM知識を習得する必要です。ですから、本題の前にJVM知識を紹介していきたいです。クラスレイアウト定義の解説を始め、JVMランタイム仕組みを紹介し、ASMフレームワークでJava classを操作する方法からAOPとDI機能の実装を展開します。<br />
 
@@ -24,12 +30,12 @@ categories: [Java]
 
 * ファイルは8ビット（1バイト）のストリームで構成されます。8ビット以上のデータはBig-Endianの順番で保存します。いわば、高いバイトは低いアドレスに保存されます。（IBMのPowerPCプロセッサはこの順番を採用します。Intelのx86プロセッサは逆順番のLittle-Endianを採用します）。
 * クラスのレイアウトはC言語の構造体のような可変長配列で構成されます。主に2つのデータ・タイプ（符号なし整数とテーブル）があります。
-    - **u1**: 符号なし8ビット整数
-    - **u2**: Big-Endianバイト順の符号なし16ビット整数
-    - **u4**: Big-Endianバイト順の符号なし32ビット整数
-    - **テーブル**: いくつかの型の可変長の配列。テーブルのテーブル内の項目数はカウント数により識別されるが、テーブルのバイト内のサイズは項目それぞれを調査することのみで決定される。
+    - `u1`: 符号なし8ビット整数
+    - `u2`: Big-Endianバイト順の符号なし16ビット整数
+    - `u4`: Big-Endianバイト順の符号なし32ビット整数
+    - `テーブル`: いくつかの型の可変長の配列。テーブルのテーブル内の項目数はカウント数により識別されるが、テーブルのバイト内のサイズは項目それぞれを調査することのみで決定される。
 
-specificationに記載されたJavaクラスの構造は以下のようです。
+[Java仮想マシン仕様](http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html)に記載されたJavaクラスの構造は以下のようです。
 
 {% codeblock lang:c %}
 ClassFile {
@@ -38,23 +44,23 @@ ClassFile {
     u2             major_version;                            // フォーマットのメジャーバージョン
     u2             constant_pool_count;                      // 定数プール数
     cp_info        constant_pool[constant_pool_count-1];     // 定数プール情報配列
-    u2             access_flags;                             // アクセスフラグ : 例えばクラスがabstractかstaticかなど
-    u2             this_class;                               // 現在のクラス名
-    u2             super_class;                              // スーパークラスの名前
+    u2             access_flags;                             // アクセスフラグ : 例えばクラスがpublicかabstractかなど
+    u2             this_class;                               // thisクラス
+    u2             super_class;                              // 親クラス
     u2             interfaces_count;                         // インタフェース数
-    u2             interfaces[interfaces_count];             // インタフェース名前の配列
+    u2             interfaces[interfaces_count];             // インタフェースの情報配列
     u2             fields_count;                             // クラスまたインスタンス変数の個数
     field_info     fields[fields_count];                     // クラスまたインスタンス変数情報配列
-    u2             methods_count;                            // メソッド数量（親クラスからのメソッドが含まない）
-    method_info    methods[methods_count];                   // メソッド情報配列
+    u2             methods_count;                            // メソッド数（親クラスからのメソッドが含まない）
+    method_info    methods[methods_count];                   // メソッドの情報配列
     u2             attributes_count;                         // クラス内の任意属性の数量
     attribute_info attributes[attributes_count];             // クラス内の任意属性の情報配列（例えばソースファイル名、行番号など）
 }
 {% endcodeblock %}
 
-コメントを見ればわかるかもしれませんが、少し説明します。constant_pool[constant_pool_count-1]を一見すると配列ですが、各要素のタイプと長さは異なっています。
+コメントを見ればわかりますが、少し説明します。constant_pool[constant_pool_count-1]を一見すると配列ですが、各要素のタイプと長さは異なっています。
 
-* u4 magic: マジックナンバーです。このファイルはpng画像ファイルではなく、JavaソースをコンパイルしたJava classファイルであることを示します。4バイトの0xCAFEBABEで固定です。2.
+* u4 magic: マジックナンバーです。このファイルはpng画像ファイルではなく、JavaソースをコンパイルしたJava classファイルであることを示します。4バイトの0xCAFEBABEで固定です。
 * u2 major_version: 使用されるクラスファイルフォーマットのメジャーバージョン数です。
     * J2SE 7 = 51（0x33 十六進）
     * J2SE 6.0 = 50（0x32 十六進）
@@ -67,19 +73,19 @@ ClassFile {
     種類                              | tag | 内容
    :----------------------------------|:---:|:------
    CONSTANT_Utf8_info                 | 1   | UTF-8 (Unicode) 文字列
-   CONSTANT_Integer_info              | 3   | Integer : ビッグエンディアンフォーマットによる符号付き32ビット2の補数
+   CONSTANT_Integer_info              | 3   | Integer : Big-Endianフォーマットによる符号付き32ビット2の補数
    CONSTANT_Float_info                | 4   | Float : 32ビット単精度IEEE 754浮動小数点数
-   CONSTANT_Long_info                 | 5   | Long : ビッグエンディアンフォーマットによる符号付き64ビット2の補数（定数テーブルの2つのスロットを占める）
+   CONSTANT_Long_info                 | 5   | Long : Big-Endianフォーマットによる符号付き64ビット2の補数（定数テーブルの2つのスロットを占める）
    CONSTANT_Double_info               | 6   | Double : 64ビット倍精度IEEE 754浮動小数点数（定数テーブルの2つのスロットを占める）
-   CONSTANT_Class_info                | 7   | クラス参照 : （内部フォーマットによる）完全修飾型クラス名を含むUTF-8文字列による定数テーブル内のインデックス（ビッグエンディアン）
-   CONSTANT_String_info               | 8   | 文字列参照 : UTF-8による定数プール内のインデックス（ビッグエンディアン）
-   CONSTANT_Fieldref_info             | 9   | フィールド参照 : 定数プール内にある2つのインデックス、最初はクラス参照で次は名前および型の記述（ビッグエンディアン）
-   CONSTANT_Methodref_info            | 10  | メソッド参照 : 定数プール内にある2つのインデックス、最初はクラス参照で次は名前および型の記述（ビッグエンディアン）
-   CONSTANT_InterfaceMethodref_info   | 11  | インタフェース参照 : 定数プール内にある2つのインデックス、最初はクラス参照で次は名前および型の記述（ビッグエンディアン）
+   CONSTANT_Class_info                | 7   | クラス参照 : （内部フォーマットによる）完全修飾型クラス名を含むUTF-8文字列による定数テーブル内のインデックス（Big-Endian）
+   CONSTANT_String_info               | 8   | 文字列参照 : UTF-8による定数プール内のインデックス（Big-Endian）
+   CONSTANT_Fieldref_info             | 9   | フィールド参照 : 定数プール内にある2つのインデックス、最初はクラス参照で次は名前および型の記述（Big-Endian）
+   CONSTANT_Methodref_info            | 10  | メソッド参照 : 定数プール内にある2つのインデックス、最初はクラス参照で次は名前および型の記述（Big-Endian）
+   CONSTANT_InterfaceMethodref_info   | 11  | インタフェース参照 : 定数プール内にある2つのインデックス、最初はクラス参照で次は名前および型の記述（Big-Endian）
    CONSTANT_NameAndType_info          | 12  | 名前および型の記述 : UTF-8による定数プール内のインデックス、最初は名前（識別子）を表し次は特別にエンコードされた型
    CONSTANT_MethodHandle_info         | 15  | Java SE 7からinvokedynamicの対応
    CONSTANT_MethodType_info           | 16  | Java SE 7からinvokedynamicの対応
-   CONSTANT_InvokeDynamic_info        | 17  | Java SE 7からinvokedynamicの対応
+   CONSTANT_InvokeDynamic_info        | 17  | Java SE 7からinvokedynamicの対応   
 
    各cp_infoの詳細は後ほど使われる際に説明します。
 
@@ -191,24 +197,24 @@ jdk_1.7.0_40でコンパイルしたクラスは以下のようです。
 + マジック・ナンバー<br />
 クラスファイルの先頭4バイトは、Javaのクラスファイルであることを示すマジックナンバーで、0xCAFEBABE固定です。
 
-    0000: **CA FE BA BE** 00 00 00 33 00 21 0A 00 06 00 1B 09 .......3.!......
+0000: `CA FE BA BE` 00 00 00 33 00 21 0A 00 06 00 1B 09 .......3.!......
 
 + バージョン番号<br />
 次の4バイトは、クラスファイルが実行対象とするJavaバージョンを識別するバージョン番号です。前半2バイトがマイナー・バージョンで後半2バイトがメジャーバージョンとなります。<br />
 以下は、マイナーバージョンが0（0x0000）、メジャーバージョンが51（0x0033）を表します。上のテーブルによって、Java SE 7のバージョン番号は51ですね。
 
-    0000: CA FE BA BE **00 00 00 33** 00 21 0A 00 06 00 1B 09 .......3.!......
+0000: CA FE BA BE `00 00 00 33` 00 21 0A 00 06 00 1B 09 .......3.!......
 
 + 定数プール数<br />
 リテラル、実行時に解決するメソッド、フィールド参照、などの各種定数を持つ定数プールの個数です。定数プールは1から数えますので、Sampleクラスは32(0x21 - 1)個の定数があります。
 
-    0000: CA FE BA BE 00 00 00 33 **00 21** 0A 00 06 00 1B 09 .......3.!......
+0000: CA FE BA BE 00 00 00 33 `00 21` 0A 00 06 00 1B 09 .......3.!......
 
 + 定数プールの情報配列<br />
 定数プールのフォーマットは種類により異なります。種類は先頭1バイトのタグで決まります。<br />
 定数プールの詳細をみってみましょう。まず1番目の定数をみます。
 
-    0000: CA FE BA BE 00 00 00 33 00 21 **0A** 00 06 00 1B 09 .......3.!......
+0000: CA FE BA BE 00 00 00 33 00 21 `0A` 00 06 00 1B 09 .......3.!......
 
 0x0aは10ですので、上のテーブルによってConstant_Methodref_infoの定数です。Constant_Methodref_infoの構造は以下のようです。
 
@@ -223,15 +229,15 @@ CONSTANT_Methodref_info {
 
 class_indexは0x06です。定数プールの6番目のCONSTANT_Class_info定数を指します。
 
-0000: CA FE BA BE 00 00 00 33 00 21 0A **00 06** 00 1B 09 .......3.!......
+0000: CA FE BA BE 00 00 00 33 00 21 0A `00 06` 00 1B 09 .......3.!......
 
 name_and_type_indexは0x1bです。定数プールの27番目のCONSTANT_NameAndType_info定数を参照します。<br />
 
-0000: CA FE BA BE 00 00 00 33 00 21 0A 00 06 **00 1B** 09 .......3.!......
+0000: CA FE BA BE 00 00 00 33 00 21 0A 00 06 `00 1B` 09 .......3.!......
 
 定数プールの27番のデータは以下のようです。
 
-0140: 6C 65 2E 6A 61 76 61 **0C 00 0D 00 0E** 0C 00 0B 00 le.java.........
+0140: 6C 65 2E 6A 61 76 61 `0C 00 0D 00 0E` 0C 00 0B 00 le.java.........
 
 CONSTANT_NameAndType_infoの構造は以下のようです。
 
@@ -292,10 +298,12 @@ Constant pool:
 
 上の1番目の定数のclass_indexは#6ですが、java.lang.Objectのメソッドをわかります。
 
-> 完全修飾されたJavaのクラス名は、「java.lang.Object」のように慣例的にドットで区分けされますが、Java仮想マシン内部形式は「java/lang/Object」のように、代わりにスラッシュを使用します。
+<p class="info">
+完全修飾されたJavaのクラス名は、「java.lang.Object」のように慣例的にドットで区分けされますが、Java仮想マシン内部形式は「java/lang/Object」のように、代わりにスラッシュを使用します。
+</p>
 
 name_and_type_indexは#27のCONSTANT_NameAndType_info(上記のコードによると&lt;init&gt;メソッド)です。コンパイルの時に自動生成したデフォールトコンストラクターですね。<br />
-メソッドの引数と戻り値は()Vを指します。Java仮想マシン内部はデータ・タイプを1文字で表します。
+メソッドの引数と戻り値は()Vを指します。Java仮想マシン内部でデータタイプの表示を以下の表にまとめました。
 
 BaseType Character | Type      | Interpretation
 :------------------|:----------|:--------------
@@ -312,13 +320,13 @@ Z                  | boolean   | true or flase
 V                  | void      | return void
 
 
-()Vは引数無し、戻り値無しのメソッドを表します。<br />
+上の表によって、()Vは引数無し、戻り値無しの意味です。<br />
 複雑な例をあげます。二次元配列String[][]は[[Ljava/lang/Stringを表します。int[][]なら[[Iを表します。
 
 + アクセスフラグ<br />
 クラス宣言またはインタフェース宣言で使用する修飾子のビットマスクを表します。
 
-01A0: 2F 4F 62 6A 65 63 74 **00 21** 00 05 00 06 00 00 00 /Object.!.......
+01A0: 2F 4F 62 6A 65 63 74 `00 21` 00 05 00 06 00 00 00 /Object.!.......
 
 Sampleクラスのアクセスフラグは0x0021 = 0x0001|0x0020（すなわち、ACC_PUBLIC|ACC_SUPER）です。<br />
 ACC_PUBLICはpublicですが、ACC_SUPERはJDK 1.2以降強制的に追加された修飾子です。
@@ -326,14 +334,14 @@ ACC_PUBLICはpublicですが、ACC_SUPERはJDK 1.2以降強制的に追加され
 + this_class<br />
 Sampleクラス情報のインデックスです。
 
-01A0: 2F 4F 62 6A 65 63 74 00 21 **00 05** 00 06 00 00 00 /Object.!.......
+01A0: 2F 4F 62 6A 65 63 74 00 21 `00 05` 00 06 00 00 00 /Object.!.......
 
 定数プールの#5はCONSTANT_Class_info定数です。クラス名name_indexは#31のCONSTANT_Utf8_info定数を参照します。<br />
 それによって、クラスの名がnet/codemelon/brisk/demo/jvm/Sampleであることはわかります。
 
 + 親クラス<br />
 
-01A0: 2F 4F 62 6A 65 63 74 00 21 00 05 **00 06** 00 00 00 /Object.!.......
+01A0: 2F 4F 62 6A 65 63 74 00 21 00 05 `00 06` 00 00 00 /Object.!.......
 
 定数#6はjava/lang/Objectです。宣言していない場合、暗黙でjava.lang.Objectを継承しますね。
 
@@ -342,14 +350,14 @@ Sampleクラス情報のインデックスです。
 インタフェース数とインタフェース情報配列はクラスを実現したインタフェース情報です。Sampleクラスはinterfaceがありませんので、interfaces_countは0x00です。
 
 
-01A0: 2F 4F 62 6A 65 63 74 00 21 00 05 00 06 **00 00** 00 /Object.!.......
+01A0: 2F 4F 62 6A 65 63 74 00 21 00 05 00 06 `00 00` 00 /Object.!.......
 
 + インスタンス変数とクラス変数<br />
 Sampleクラスは2つのインスタンス変数と1つのクラス変数（合わせて3つ）があります。親クラスの変数を含まないことを注意してください。<br />
 変数の構造は上のfield_infoです。
 
-01A0: 2F 4F 62 6A 65 63 74 00 21 00 05 00 06 00 00 **00** /Object.!.......<br />
-01B0: **03** 00 02 00 07 00 08 00 00 00 19 00 09 00 08 00 ................
+01A0: 2F 4F 62 6A 65 63 74 00 21 00 05 00 06 00 00 `00` /Object.!.......<br />
+01B0: `03` 00 02 00 07 00 08 00 00 00 19 00 09 00 08 00 ................
 
 以下は変数nameの内容を示します。
 
@@ -357,24 +365,26 @@ Sampleクラスは2つのインスタンス変数と1つのクラス変数（合
 
 もっと複雑な例としてクラス変数AOP_CLASS_SUFFIXを解析しましょう。
 
+{% codeblock lang:java %}
     public static final String AOP_CLASS_SUFFIX = "$$_brisk_aop_enhanced";
+{% endcodeblock %}
 
 AOP_CLASS_SUFFIXのaccess_flagsはACC_PUBLIC | ACC_STATIC | ACC_FINAL (0x0001 | 0x0008 | 0x0010) = 0x19です。
 
-01B0: 03 00 02 00 07 00 08 00 00 **00 19** 00 09 00 08 00 ................
+01B0: 03 00 02 00 07 00 08 00 00 `00 19` 00 09 00 08 00 ................
 
 name_indexは0x09です。上の定数一覧によって、#9 = Utf8 AOP_CLASS_SUFFIXです。
 
-01B0: 03 00 02 00 07 00 08 00 00 00 19 **00 09** 00 08 00 ................
+01B0: 03 00 02 00 07 00 08 00 00 00 19 `00 09` 00 08 00 ................
 
 descriptor_indexは0x08ですが、上の定数一覧によって、#8 = Utf8 Ljava/lang/String;(java.lang.Stringインスタンス)です。
 
-01B0: 03 00 02 00 07 00 08 00 00 00 19 00 09 **00 08** 00 ................
+01B0: 03 00 02 00 07 00 08 00 00 00 19 00 09 `00 08` 00 ................
 
 次のattributes_countは0x0001です。1つの属性はあります。
 
-01B0: 03 00 02 00 07 00 08 00 00 00 19 00 09 00 08 **00** ................<br />
-01C0: **01** 00 0A 00 00 00 02 00 04 00 04 00 0B 00 0C 00 ................
+01B0: 03 00 02 00 07 00 08 00 00 00 19 00 09 00 08 `00` ................<br />
+01C0: `01` 00 0A 00 00 00 02 00 04 00 04 00 0B 00 0C 00 ................
 
 次の2バイトは0x000aです。上の定数プールの#10によると"ConstantValue"の属性です。<br />
 [ConstantValue](http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2)の構造は以下のようです。
@@ -389,41 +399,41 @@ ConstantValue_attribute {
 
 attribute_name_indexはConstantValueの定数プールのインデックです。attribute_lengthは固定で2です。
 
-01C0: 01 00 0A **00 00 00 02** 00 04 00 04 00 0B 00 0C 00 ................
+01C0: 01 00 0A `00 00 00 02` 00 04 00 04 00 0B 00 0C 00 ................
 
 constantvalue_indexは0x04です。定数プールによると、#4 = String #30 //  $$_brisk_aop_enhancedです。AOP_CLASS_SUFFIXの初期値ですね。
 
-01C0: 01 00 0A 00 00 00 02 **00 04** 00 04 00 0B 00 0C 00 ................
+01C0: 01 00 0A 00 00 00 02 `00 04` 00 04 00 0B 00 0C 00 ................
 
 他の変数は同じな方法で解析できます。
 
 + メソッド<br />
 コンパイラで自動生成したコンストラクターを含めて、methods_countは0x04です。
 
-01D0: 00 **00 04** 00 01 00 0D 00 0E 00 01 00 0F 00 00 00 ................
+01D0: 00 `00 04` 00 01 00 0D 00 0E 00 01 00 0F 00 00 00 ................
 
 一番目のmethod_infoの内容を見てみましょう。method_infoの構造を上に参照できます。<br />
 access_flagsは0x01です。
 
-01D0: 00 00 04 **00 01** 00 0D 00 0E 00 01 00 0F 00 00 00 ................
+01D0: 00 00 04 `00 01` 00 0D 00 0E 00 01 00 0F 00 00 00 ................
 
 [メソッドのアクセスフラグ一覧](http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6)によると、ACC_PUBLICは0x0001です。
 
-01D0: 00 00 04 00 01 **00 0D** 00 0E 00 01 00 0F 00 00 00 ................
+01D0: 00 00 04 00 01 `00 0D` 00 0E 00 01 00 0F 00 00 00 ................
 
-name_indexは0x0dです。上の定数プールによると、#13 = Utf8 <init>です。自動生成したデフォルト・コンストラクターです。
+name_indexは0x0dです。上の定数プールによると、#13 = Utf8 &lt;init&gt;です。自動生成したデフォルト・コンストラクターです。
 
-01D0: 00 00 04 00 01 00 0D **00 0E** 00 01 00 0F 00 00 00 ................
+01D0: 00 00 04 00 01 00 0D `00 0E` 00 01 00 0F 00 00 00 ................
 
 descriptor_indexは0x0eなので、定数プールの#14 = Utf8  ()Vです。デフォルト・コンストラクターはパラメータ無し、戻り値voidです。<br />
 次のattributes_countは0x01です。
 
-01D0: 00 00 04 00 01 00 0D 00 0E **00 01** 00 0F 00 00 00 ................
+01D0: 00 00 04 00 01 00 0D 00 0E `00 01` 00 0F 00 00 00 ................
 
 次の2バイトはattribute_name_indexです。定数プールの0x0fは#15 = Utf8 Codeです。<br />
 それによって、属性タイプは[Code_attribute](http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.3)です。
 
-01D0: 00 00 04 00 01 00 0D 00 0E 00 01 **00 0F** 00 00 00 ................
+01D0: 00 00 04 00 01 00 0D 00 0E 00 01 `00 0F` 00 00 00 ................
 
 Code_attributeの構造は以下のようです。
 
@@ -448,13 +458,13 @@ Code_attribute {
 
 かなり複雑な構造ですね。メソッドに仮想マシンの命令を表す構造体です。<br />
 
-01D0: 00 00 04 00 01 00 0D 00 0E 00 01 00 0F **00 00 00** ................<br />
-01E0: **39** 00 02 00 01 00 00 00 0B 2A B7 00 01 2A 10 1E 9........*...*..
+01D0: 00 00 04 00 01 00 0D 00 0E 00 01 00 0F `00 00 00` ................<br />
+01E0: `39` 00 02 00 01 00 00 00 0B 2A B7 00 01 2A 10 1E 9........*...*..
 
 attribute_lengthはCode_attributeにattribute_name_indexとattribute_lengthを除いたバイト数です。<br />
 上のバイトデータによると、&lt;init&gt;のCode_attributeの長さは0x39バイトです。
 
-01E0: 39 **00 02 00 01** 00 00 00 0B 2A B7 00 01 2A 10 1E 9........*...*..
+01E0: 39 `00 02 00 01` 00 00 00 0B 2A B7 00 01 2A 10 1E 9........*...*..
 
 次のmax_stackは0x02です。max_localsは0x01です。JVMでメソッドをframeに実行されます。<br />
 frameにローカル変数用の配列と操作命令スタックはあります。変数配列はメソッドパラメータ、ローカル変数（中間結果）を保存します。<br />
@@ -463,21 +473,21 @@ frameにローカル変数用の配列と操作命令スタックはあります
 doubleとlongのデータは64ビットなので、max_stackとmax_localsを計算するときに注意しなければなりません。<br />
 詳しいJVMのランタイム仕組みは次回に解説させて頂きます。
 
-01E0: 39 00 02 00 01 **00 00 00 0B** 2A B7 00 01 2A 10 1E 9........*...*..
+01E0: 39 00 02 00 01 `00 00 00 0B` 2A B7 00 01 2A 10 1E 9........*...*..
 
 code_lengthは0x0bです。メソッドコードはcode[11]に置かれます。Code_attributeの構成によって、codeタイプはu1です。<br />
 u1の範囲は0x00 ~ 0xff(0 ~ 255)です。現在約200個のJVM命令を定義しています。<br />
 exception_table_lengthとexception_tableは例外情報です。&lt;init&gt;は例外宣言がありませんので、exception_table_lengthは0です。
 
-01F0: B5 00 02 B1 **00 00** 00 02 00 10 00 00 00 0A 00 02 ................
+01F0: B5 00 02 B1 `00 00` 00 02 00 10 00 00 00 0A 00 02 ................
 
 次のattributes_countは0x02です。
 
-01F0: B5 00 02 B1 00 00 **00 02** 00 10 00 00 00 0A 00 02 ................
+01F0: B5 00 02 B1 00 00 `00 02` 00 10 00 00 00 0A 00 02 ................
 
 1つ目の属性のインデックは0x10です。定数プールの#16はUtf8 LineNumberTableです。
 
-01F0: B5 00 02 B1 00 00 00 02 **00 10** 00 00 00 0A 00 02 ................
+01F0: B5 00 02 B1 00 00 00 02 `00 10` 00 00 00 0A 00 02 ................
 
 [LineNumberTable](http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.12)の構造は以下のようです。
 
@@ -496,19 +506,19 @@ LineNumberTable_attribute {
 attribute_lengthはattribute_name_indexとattribute_length以外のバイト数です。<br />
 バイトデータによって、attribute_lengthは10(0x0a)です。
 
-01F0: B5 00 02 B1 00 00 00 02 00 10 **00 00 00 0A** 00 02 ................
+01F0: B5 00 02 B1 00 00 00 02 00 10 `00 00 00 0A` 00 02 ................
 
 line_number_table_lengthは0x02です。
 
-01F0: B5 00 02 B1 00 00 00 02 00 10 00 00 00 0A *00 02** ................
+01F0: B5 00 02 B1 00 00 00 02 00 10 00 00 00 0A *00 02` ................
 
 line_number_tableは次の8バイトとです。start_pcはJVM命令の番号です。line_numberはソースの行番号です。
 
-0200: **00 00 00 08 00 04 00 0E** 00 11 00 00 00 0C 00 01 ................
+0200: `00 00 00 08 00 04 00 0E` 00 11 00 00 00 0C 00 01 ................
 
 次の属性は定数プールの#17(0x11) = Utf8 LocalVariableTableです。
 
-0200: 00 00 00 08 00 04 00 0E **00 11** 00 00 00 0C 00 01 ................
+0200: 00 00 00 08 00 04 00 0E `00 11` 00 00 00 0C 00 01 ................
 
 LocalVariableTableの構造は以下のようです。
 
@@ -528,14 +538,13 @@ LocalVariableTable_attribute {
 
 attribute_lengthは0x0cです。local_variable_table_lengthは0x01です。local_variable_tableに1つの変数があることはわかります。
 
-0200: 00 00 00 08 00 04 00 0E 00 11 **00 00 00 0C 00 01** ................
+0200: 00 00 00 08 00 04 00 0E 00 11 `00 00 00 0C 00 01` ................
 
 次の10バイトはlocal_variable_table[1]の変数です。
 
-0210: **00 00 00 0B 00 12 00 13 00 00** 00 01 00 14 00 15 ................
+0210: `00 00 00 0B 00 12 00 13 00 00` 00 01 00 14 00 15 ................
 
-定数プールとlocal_variable_tableの構造によって、
-
+定数プールとlocal_variable_tableの構造によって、上記のデータの意味は以下のようです。
 
 {% codeblock lang:c %}
     {
@@ -548,13 +557,40 @@ attribute_lengthは0x0cです。local_variable_table_lengthは0x01です。local
 {% endcodeblock %}
 
 start_pc + lengthはメソッド実行の開始JVMコマンドの位置を表します。name_indexとdescriptor_indexはSampleインスタンスthisのことが分かります。<br />
-indexはthis変数はローカル変数配列の最初（インデックス0）位置に置かれることを示します。JVMではすべてのメソッド実行frameの変数配列の0にthis変数を置かれます。
+indexはthis変数がローカル変数配列の最初（インデックス0）位置に置かれることを示します。JVMではすべてのメソッド実行frameの変数配列の0にthis変数を置かれます。
+
+同様のように他のメソッドを解析できます。次のバイトをみってみましょう。
+
+0210: 00 00 00 0B 00 12 00 13 00 00 `00 01 00 14 00 15` ................
+
+0x0001はACC_PUBLICです。0x0014は定数プールの#20 = Utf8 initです。0x0015は定数プールの#21 = Utf8 (Ljava/lang/String;I)Vです。<br />
+public void init(String name, int age)メソッドであることがわかりますね。
 
 
+最後はattributes_countとattribute_info attributes[attributes_count]を見ます。
 
+02D0: 00 00 01 00 10 00 00 00 06 00 01 00 00 00 1A `00` ................<br />
+02E0: `01 00 19 00 00 00 02 00 1A`                      .........
+
+attributes_countは0x0001です。属性タイプは定数プールの#25(0x0019) = Utf8 SourceFileです。
+SourceFile属性の構造は以下のようです。
+
+{% codeblock lang:c %}
+SourceFile_attribute {
+    u2 attribute_name_index;
+    u4 attribute_length;
+    u2 sourcefile_index;
+}
+{% endcodeblock %}
+
+attribute_lengthは固定で2です。sourcefile_indexは定数プールの#26(0x001a) Utf8 Sample.javaです。
+ソースファイルの名前はSample.javaであることはわかります。
 
 ## まとめ
+以上では簡単なクラスを例として、Javaクラスファイルのレイアウトを解析してみました。exception_table、annotationなどの構造を触れていません。
 
+詳しい内容は[Java仮想マシン仕様の第四章](http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html)を参照すれば良いと思います。
 
+次回はJVMランタイム仕組みを紹介していきたいです。JavaコードとJVMアセンブリコードを対照しながら、JVMの内部動作を考査してみます。
 
 

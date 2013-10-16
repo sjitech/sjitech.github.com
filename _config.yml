@@ -3,17 +3,19 @@
 # ----------------------- #
 
 url: http://sjitech.github.io
-title: SJI engineer Blog
-subtitle: Technology blog of SJI
-author: SJI Research center of advanced technology
-simple_search: http://google.com/search
+title: Technology of SJI
+subtitle: 株式会社SJIの技術ブログ
+author: 株式会社SJI先端技術研究センター
+simple_search: http://google.co.jp/search
 description: News, events and insights from SJI engineers.
+keywords: Java, Android, iOS, Mobile develop, Clound computing, ruby, vim, emacs, web application, REST, Json, c/c++, Linux, software, programming, JEE, ruby, python, JavaScript, AWS, OpenStack, Hadoop, Agile
 
 # Default date format is "ordinal" (resulting in "July 22nd 2007")
 # You can customize the format as defined in
 # http://www.ruby-doc.org/core-1.9.2/Time.html#method-i-strftime
 # Additionally, %o will give you the ordinal representation of the day
-date_format: "ordinal"
+# date_format: "ordinal"
+date_format: "%Y年%m月%d日"
 
 # RSS / Email (optional) subscription links (change if using something like Feedburner)
 subscribe_rss: /atom.xml
@@ -44,14 +46,14 @@ pygments: false # default python pygments have been replaced by pygments.rb
 paginate: 10          # Posts per page on the blog index
 pagination_dir: blog  # Directory base for pagination URLs eg. /blog/page/2/
 recent_posts: 5       # Posts in the sidebar Recent Posts section
-excerpt_link: "Read on &rarr;"  # "Continue reading" link text at the bottom of excerpted articles
+excerpt_link: "続きを読む"  # "Continue reading" link text at the bottom of excerpted articles
 
 titlecase: true       # Converts page and post titles to titlecase
 
 # list each of the sidebar modules you want to include, in the order you want them to appear.
 # To add custom asides, create files in /source/_includes/custom/asides/ and add them to the list like 'custom/asides/custom_aside_name.html'
 # default_asides: [asides/recent_posts.html, asides/github.html, asides/delicious.html, asides/pinboard.html, asides/googleplus.html]
-default_asides: [custom/asides/about.html, custom/asides/category_list.html, asides/recent_posts.html, asides/github.html]
+default_asides: [custom/asides/about.html, custom/asides/category_list.html, asides/recent_posts.html, asides/github.html, custom/asides/friend_link.html]
 
 # Each layout uses the default asides, but they can have their own asides instead. Simply uncomment the lines below
 # and add an array with the asides you want to use.

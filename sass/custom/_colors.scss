@@ -41,3 +41,9 @@
 //$pre-bg: $base03;
 //$pre-border: darken($base02, 5);
 //$pre-color: $base1;
+
+$header-bg: #04263e !default;
+$nav-bg: desaturate(lighten(#a0bfd6, 18), 5) !default;
+$footer-bg: #d1e4f2 !default;
+$footer-color: #666 !default;
+$footer-link-color-hover: darken($footer-bg, 50) !default;

@@ -4,7 +4,10 @@ title: "How to write new post on octopress"
 date: 2013-08-14 14:14
 comments: true
 author: Haidong Wang
+keywords: octopress
 categories: [OpenSource]
+tags: [tips octopress]
+description: Octopress環境構築
 ---
 
 
@@ -68,9 +71,11 @@ markdown文法は[JOHN GRUBERのブログ](http://daringfireball.net/projects/ma
 ##### コードブロック
 Octopressにコードブロックは以下のように挿入する。
 
+{% raw %}
     ``` ruby
     puts 'hello markdown!'
     ```
+{% endraw %}
 
 上記のコードは以下のように表示される。
 

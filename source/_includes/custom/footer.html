@@ -2,3 +2,14 @@
   Copyright &copy; {{ site.time | date: "%Y" }} - {{ site.author }} -
   <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
 </p>
+
+<script language="javaScript">
+$(document).ready( function () {
+   $("a[href^='http']:not([href*='" + location.hostname + "'])").attr('target', '_blank');
+   $("table:has(thead)").each(function() {
+       if (!$(this).hasClass("datalist")) {
+           $(this).addClass("datalist");
+       }
+   });
+})
+</script>

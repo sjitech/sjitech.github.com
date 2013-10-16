@@ -1,2 +1,235 @@
 // This File is imported last, and will override other styles in the cascade
 // Add styles here to make changes without digging in too much
+
+p,blockquote,ul,ol{margin-bottom: 0.618em}
+
+@media only screen and (min-width:992px) {
+h1 {
+    font-size:2.2em
+}
+}
+
+blockquote{
+	font-family:"Menlo", Osaka, "ヒラギノ丸ゴ Pro", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+pre > code {
+    background:none !important;
+}
+
+code {
+    background:#C1EBFC !important;
+}
+
+/* info warn dialog style */
+.info, .warning{
+
+	border:none;
+	padding:0.6em 1.25em 0.6em 48px;
+	margin-top:0.25em;
+
+	-webkit-border-radius: 8px;
+	-moz-border-radius: 8px;
+	border-radius: 8px;
+	
+	-webkit-box-shadow: 0 4px 4px rgba(0, 0, 0, 0.3);
+	-moz-box-shadow: 0 4px 4px rgba(0, 0, 0, 0.3);
+	-box-shadow: 0 4px 4px rgba(0, 0, 0, 0.3);
+}
+
+.info{
+	background:#d5e9f6 url(/images/info_bar.gif) no-repeat left top;
+}
+
+.warning{
+	background:#f9d9d8 url(/images/warn_bar.gif) no-repeat left top;
+}
+
+
+.datalist{
+    border:1px solid #007eff;
+    border-collapse:collapse;
+	margin: 20px auto 20px auto;
+	
+}
+
+.datalist caption{
+	font-weight:bold;
+	text-align:center;
+}
+
+.datalist th{
+    border:1px solid #429fff;
+    background-color:#d2e8ff;
+    font-weight:bold;
+    padding-top:4px;
+    padding-bottom:4px;
+    padding-left:10px;
+    padding-right:10px;
+    text-align:center;
+}
+
+.datalist td{
+      border:1px solid #429fff;
+      text-align:left;
+      padding:4px;
+}
+
+.datalist tr:hover{
+    background-color:#c4e4fe;
+}
+
+/* -------------- */
+
+.none-left-margin{
+    padding-left: 0;
+}
+
+
+.blogroll a{
+    text-decoration:none;
+
+}
+
+#recent_posts a{
+    text-decoration:none;
+
+}
+
+#copyleft a{
+    text-decoration:none;
+}
+
+#comment_sidebar a{
+    text-decoration:none;
+}
+
+#comment_sidebar ul{
+    padding-left:0;
+}
+
+#categories_tag a{
+    text-decoration:none;
+
+}
+
+div.footnotes{
+	border-top: 1px dashed grey;
+	font-size: 0.8em;
+	
+}
+
+div.footnotes > ol:before{
+	margin-left: -20px;
+	content: "footnote： ";
+}
+
+.footnotes blockquote{
+	font-size: 0.8em;
+}
+
+a[rel="footnote"]:after{
+	content: "]";
+}
+
+a[rel="footnote"]:before{
+	content: "[";
+}
+
+a[rev="footnote"]:after{
+	content: "]";
+}
+
+a[rev="footnote"]:before{
+	content: "[";
+}
+
+
+pre code{
+	color:#DDD;
+}
+
+
+div.showbox{
+	margin: 15px auto 15px auto;
+	background-color: white;
+	border: solid 1px black;
+	padding: 10px 10px 5px 10px;
+
+}
+
+div.sharing{
+	margin-bottom: 25px;
+}
+
+
+$sans: Palatino, "Menlo", Georgia，Osaka, "ヒラギノ丸ゴ Pro", "Hiragino Sans GB", "文泉驿微米黑", "Microsoft YaHei", "SimSun", sans-serif;
+$serif: "Monaco", "ヒラギノ丸ゴ Pro", "文泉驿微米黑", serif;
+$heading-font-family: "Verdana", "Monaco", "ヒラギノ丸ゴ Pro", sans-serif;
+$header-title-font-family: "Futura", sans-serif;
+
+@mixin header-text {
+  @include text-shadow(-5px -5px 10px #000);
+}
+
+body > header h1 {
+  @include header-text;
+}
+body > header h2 {
+  @include header-text;
+}
+
+html {
+  // background: #555555 url("/images/blog-background.jpg");
+  @include background(linear-gradient(top, $page-bg, $header-bg));
+}
+
+body {
+  @include box-shadow(0 0 15px #000);
+}
+
+body > div { 
+  background-image: none; 
+}
+
+body > div > div {
+  background-image: none; 
+}
+
+body > nav {
+  ul.main-navigation {
+    padding-left: 3px;
+  }
+  a {
+    &:hover {
+      color: hsl(209.01, 86.94%, 50.04%);
+      text-shadow:
+        hsl(209.01, 86.94%, 42.04%) 0px 0px 5px,
+        hsl(209.01, 86.94%, 42.04%) 0px 0px 7px,
+        hsl(209.01, 86.94%, 52.04%) 0px 0px 9px,
+        hsl(209.01, 86.94%, 52.04%) 0px 0px 11px,
+        hsl(0, 0%, 0%) 0 0 2px;
+    }
+    i {
+      color: hsl(209.01, 86.94%, 50.04%);
+      text-shadow:
+        hsl(209.01, 86.94%, 42.04%) 0px 0px 5px,
+        hsl(209.01, 86.94%, 42.04%) 0px 0px 7px,
+        hsl(209.01, 86.94%, 52.04%) 0px 0px 9px,
+        hsl(209.01, 86.94%, 52.04%) 0px 0px 11px,
+        hsl(0, 0%, 0%) 0 0 2px;
+    }
+  }
+}
+
+@media only screen and (min-width: 1040px) {
+  body > nav {
+    @include border-top-radius(.4em);
+  }
+
+  body > footer {
+    @include border-bottom-radius(.4em);
+  }
+}
+
+
