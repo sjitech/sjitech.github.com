@@ -1,7 +1,7 @@
 ---
 layout: post
 author: Haidong Wang
-title: "Chef soloとknife soloで環境構築を自動化"
+title: "Chef soloとKnife soloで環境構築を自動化"
 date: 2013-10-31 20:18
 comments: true
 categories: [DevOps]
@@ -11,10 +11,74 @@ keywords: Chef, Ruby, DevOps, Infrastructrue, インフラ自動化
 ---
 
 <p class="info">
-最近のInfrastructure as codeを考査しながら、一連なインフラ自動化ツールを紹介頂きたいです。本文は個人及び小規模組織の開発環境構築を自動化するツールChef soloを紹介します。ChefはC/S構造で大規模なサーバ群構築を自動化できますが、Chefサーバ構築は若干手間がかかりますので、個人向けのChef solo、knife solo及びGitを併用して、環境構築をコード化にしてみましょう。
+関連の例を解説しならが、最近の人気なインフラ自動化ツールChef soloを紹介します。
 </p>
 
-## Chefとは？
-
-
 <!-- more -->
+
+## 参考サイト
+
+
+## Chefとは？
+Chefは[Opscode社](http://www.opscode.com)によりRubyで開発されたオープンソースのインフラ自動化プラットフォームです。ソースは[Github](https://github.com/opscode/chef)に公開サれています。利用者はRubyのDSLでサーバ環境構築の手順を定義し、Rubyスクリプトを実行してサーバ環境を構築できます。
+
+### ClientとServer
+
+
+### Chef soloとKnife solo
+
+## 今回の環境
+
+## インストール
+
+### 作業手順
+
+#### init
+
+##### install cookbook(berfshelf)
+
+##### create cookbook(knife create cookbook)
+
+#### prepare
+
+#### cook
+
+## 用語解説
+
+### リポジトリ
+
+### cookbooks
+
+#### recipe
+
+#### resource
+
+#### attribute
+
+#### template
+
+### data_bags
+
+### nodes
+
+### roles
+
+
+## サンプル
+
+### hello chef
+
+### パッケージのインストール
+
+### JDKのインストール
+
+### シェールスクリプトとテンプレートの例
+
+## まとめ
+
+### シェールスクリプトとの比較
+
+### 関連ツール
+
+### メリットとデメリット
+
