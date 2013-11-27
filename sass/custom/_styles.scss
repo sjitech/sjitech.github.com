@@ -1,7 +1,9 @@
 // This File is imported last, and will override other styles in the cascade
 // Add styles here to make changes without digging in too much
 
-p,blockquote,ul,ol{margin-bottom: 0.618em}
+p,blockquote,ul,ol {
+	margin-bottom: 0.618em;
+}
 
 @media only screen and (min-width:992px) {
 h1 {
@@ -9,8 +11,12 @@ h1 {
 }
 }
 
-blockquote{
-	font-family:"Menlo", Osaka, "ヒラギノ丸ゴ Pro", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+article blockquote {
+	font-size: 0.8em;
+	font-style: normal;
+	font-weight: normal;
+	color: #A24A87;
+	font-family: "ヒラギノ丸ゴ Pro", "Hiragino Sans GB", "Meiryo UI", "メイリオ", sans-serif;
 }
 
 pre > code {
@@ -162,11 +168,14 @@ div.sharing{
 	margin-bottom: 25px;
 }
 
+$sans: "ヒラギノ丸ゴ Pro", "Hiragino Sans GB", "Meiryo UI", "メイリオ", sans-serif;
+$serif: "ヒラギノ丸ゴ Pro", "Hiragino Sans GB", "Meiryo UI", "メイリオ", serif;
+$heading-font-family: "ヒラギノ丸ゴ Pro", "Hiragino Sans GB", "Meiryo UI", "メイリオ", sans-serif;
+$header-title-font-family: "ヒラギノ丸ゴ Pro", "Hiragino Sans GB", "Meiryo UI", "メイリオ", sans-serif;
 
-$sans: Palatino, "Menlo", Georgia，Osaka, "ヒラギノ丸ゴ Pro", "Hiragino Sans GB", "文泉驿微米黑", "Microsoft YaHei", "SimSun", sans-serif;
-$serif: "Monaco", "ヒラギノ丸ゴ Pro", "文泉驿微米黑", serif;
-$heading-font-family: "Verdana", "Monaco", "ヒラギノ丸ゴ Pro", sans-serif;
-$header-title-font-family: "Futura", sans-serif;
+.serif, body, #content .blog-index a[rel="full-article"] {
+    font-family: "ヒラギノ丸ゴ Pro", "Hiragino Sans GB", "Meiryo UI", "メイリオ", sans-serif;
+}
 
 @mixin header-text {
   @include text-shadow(-5px -5px 10px #000);
