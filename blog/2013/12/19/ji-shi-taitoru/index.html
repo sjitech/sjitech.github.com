@@ -5,7 +5,7 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="ja"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>Technology of SJI</title>
+  <title>Node.js vs C vs Java vs Python - Technology of SJI</title>
   <meta name="author" content="株式会社SJI先端技術研究センター">
 
   
@@ -18,7 +18,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://sjitech.github.io">
+  <link rel="canonical" href="http://sjitech.github.io/blog/2013/12/19/ji-shi-taitoru">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/atom.xml" rel="alternate" title="Technology of SJI" type="application/atom+xml">
@@ -77,96 +77,12 @@
 </nav>
   <div id="main">
     <div id="content">
-      <div class="blog-index">
+      <div>
+<article class="hentry" role="article">
   
-  
-  
-    <article>
-      
   <header>
     
-      <h1 class="entry-title"><a href="/blog/2013/12/19/doesnodejsoptimized/">Node.jsは予想通りオプティマイズされたか？ (大量タイマー)</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
-  
-
-
-<time datetime="2013-12-19T10:34:00+09:00" pubdate data-updated="true">2013年12月19日</time>
-        
-         | <a href="/blog/2013/12/19/doesnodejsoptimized/#disqus_thread">Comments</a>
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p>Javascriptで大量タイマーを利用した場合、普通の実装では、</p>
-
-<pre><code>
-while(true) {  
-  node_js_check_event {  
-    すべてのタイマーを一つずつチェック  ===> 一つずつは効率悪い、オプティマイズすべき。  
-    タイムアウト付き、他のイベントをチェック (epollなど)  
-  }  
-  
-  イベントをディスパッチ...
-}
-</code></pre>
-
-
-<p></p>
-
-<p>上記「すべてのタイマーを一つずつチェック」をオプティマイズすべきと思います。<br/>
-オプティマイズ方法は、B-TREEみたいな構造でタイマーのfireTimeを保存し、<br/>
-チェックはB-TREEから最小fireTimeだけをチェックすれば終わり。</p>
-
-<p>Node.jsはどのように実装したのか？ソースを見てみると、確かにオプティマイズしました！：<br/>
-<b>[closest timer of all timers]</b><br/>
-<a href="https://github.com/joyent/node/blob/master/deps/uv/src/unix/timer.c">https://github.com/joyent/node/blob/master/deps/uv/src/unix/timer.c</a> #120</p>
-
-<pre><code>
-RB_MIN(uv__timers, &loop->timer_handles)  
-</code></pre>
-
-
-<p><b>[pass timeout argument to poll api]</b><br/>
-<a href="https://github.com/joyent/node/blob/master/deps/uv/src/unix/core.c">https://github.com/joyent/node/blob/master/deps/uv/src/unix/core.c</a> #276</p>
-
-<pre><code>
-timeout = 0;  
-if ((mode & UV_RUN_NOWAIT) == 0)  
-    timeout = uv_backend_timeout(loop);  
-
-uv__io_poll(loop, timeout); 
-</code></pre>
-
-
-<p>unixのソースですが、Windows系のソースも似ているロジックが入っています。</p>
-
-<p>最高です。</p>
-</div>
-  
-  
-
-
-    </article>
-  
-  
-    <article>
-      
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/12/19/ji-shi-taitoru/">Node.js vs C vs Java vs Python</a></h1>
+      <h1 class="entry-title">Node.js vs C vs Java vs Python</h1>
     
     
       <p class="meta">
@@ -184,14 +100,14 @@ uv__io_poll(loop, timeout);
 
 <time datetime="2013-12-19T10:12:00+09:00" pubdate data-updated="true">2013年12月19日</time>
         
-         | <a href="/blog/2013/12/19/ji-shi-taitoru/#disqus_thread">Comments</a>
+         | <a href="#disqus_thread">Comments</a>
         
       </p>
     
   </header>
 
 
-  <div class="entry-content"><p>Node.js、C、Java、Pythonの比較は複雑ですが、とりあえず、純粋な言語性能を計ってみました。後でもっと現実に近いケースで計りましょう。 <br/>
+<div class="entry-content"><p>Node.js、C、Java、Pythonの比較は複雑ですが、とりあえず、純粋な言語性能を計ってみました。後でもっと現実に近いケースで計りましょう。 <br/>
 今回のケースでは、Node.js = 0.85 C = 0.83 Java = 100+ Pythonぐらい。</p>
 
 <p>厳密に言うと、今回はNode.jsの性能ではなくV8 Javascriptのです。</p>
@@ -384,70 +300,16 @@ print(p.getPrime(p.getPrimeCount()-1))
 
 
 </div>
-  
-  
 
 
-    </article>
-  
-  
-    <article>
+  <footer>
+    <p class="meta">
       
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/11/27/chef-solo-knife-solo-intro/">Chef soloとKnife Soloで環境構築を自動化</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
   
 
+<span class="byline author vcard">Posted by <span class="fn">株式会社SJI先端技術研究センター</span></span>
 
-<time datetime="2013-11-27T20:00:00+09:00" pubdate data-updated="true">2013年11月27日</time>
-        
-         | <a href="/blog/2013/11/27/chef-solo-knife-solo-intro/#disqus_thread">Comments</a>
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p class="info">
-最近の人気なインフラ自動化ツールChef soloを利用して、開発環境の構築を自動化してみます。<br />
-</p>
-
-
-
-
-</div>
-  
-  
-    <footer>
-      <a rel="full-article" href="/blog/2013/11/27/chef-solo-knife-solo-intro/">続きを読む</a>
-    </footer>
-  
-
-
-    </article>
-  
-  
-    <article>
       
-  <header>
-    
-      <h1 class="entry-title"><a href="/blog/2013/10/09/build-a-java-framework-from-scratch-1/">Build a Java Framework From Scratch(1)</a></h1>
-    
-    
-      <p class="meta">
-        
 
 
 
@@ -459,83 +321,44 @@ print(p.getPrime(p.getPrimeCount()-1))
   
 
 
-<time datetime="2013-10-09T15:02:00+09:00" pubdate data-updated="true">2013年10月09日</time>
-        
-         | <a href="/blog/2013/10/09/build-a-java-framework-from-scratch-1/#disqus_thread">Comments</a>
-        
-      </p>
-    
-  </header>
-
-
-  <div class="entry-content"><p class="info">
-本連載はスクラッチで軽量Javaフレームワークの設計、実現方法を解説します。Javaの知識を深めながら、Spring FrameworkのようなAOPxDIフレームワークをゼロから作成してみます。
-</p>
-
-
-<p>自力でAOPとDI機能を実現するため、ある程度のJVM知識を習得する必要です。ですから、本題の前にJVM知識を紹介していきたいです。クラスレイアウト定義の解説を始め、JVMランタイム仕組みを紹介し、ASMフレームワークでJava classを操作する方法からAOPとDI機能の実装を展開します。<br /></p>
-
-</div>
-  
-  
-    <footer>
-      <a rel="full-article" href="/blog/2013/10/09/build-a-java-framework-from-scratch-1/">続きを読む</a>
-    </footer>
-  
-
-
-    </article>
-  
-  
-    <article>
+<time datetime="2013-12-19T10:12:00+09:00" pubdate data-updated="true">2013年12月19日</time>
       
-  <header>
+
+
+    </p>
     
-      <h1 class="entry-title"><a href="/blog/2013/08/14/how-to-write-new-post-on-octopress/">How to Write New Post on Octopress</a></h1>
-    
-    
-      <p class="meta">
-        
-
-
-
-
-
-
-
-
+      <div class="sharing">
   
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://sjitech.github.io/blog/2013/12/19/ji-shi-taitoru/" data-via="sjitech" data-counturl="http://sjitech.github.io/blog/2013/12/19/ji-shi-taitoru/" >Tweet</a>
+  
+  
+  <div class="g-plusone" data-size="medium"></div>
+  
+  
+    <div class="fb-like" data-send="true" data-width="450" data-show-faces="false"></div>
+  
+</div>
 
-
-<time datetime="2013-08-14T14:14:00+09:00" pubdate data-updated="true">2013年08月14日</time>
-        
-         | <a href="/blog/2013/08/14/how-to-write-new-post-on-octopress/#disqus_thread">Comments</a>
-        
-      </p>
     
-  </header>
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2013/11/27/chef-solo-knife-solo-intro/" title="Previous Post: Chef soloとKnife soloで環境構築を自動化">&laquo; Chef soloとKnife soloで環境構築を自動化</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2013/12/19/doesnodejsoptimized/" title="Next Post: Node.jsは予想通りオプティマイズされたか？ (大量タイマー)">Node.jsは予想通りオプティマイズされたか？ (大量タイマー) &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
 
-
-  <div class="entry-content"><p>ここでOctopressで新規記事を投稿する方法を紹介する。<br />
-Octopressを知っていない方もいると思うが、始まる前に少しOctopressを紹介してから進めましょう。</p>
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
 
 </div>
-  
-  
-    <footer>
-      <a rel="full-article" href="/blog/2013/08/14/how-to-write-new-post-on-octopress/">続きを読む</a>
-    </footer>
-  
 
-
-    </article>
-  
-  <div class="pagination">
-    
-    <a href="/blog/archives">Blog Archives</a>
-    
-  </div>
-</div>
 <aside class="sidebar">
   
     <section>
@@ -579,7 +402,7 @@ Octopressを知っていない方もいると思うが、始まる前に少しOc
 <section>
   <h1>GitHub Repos</h1>
   <ul id="gh_repos">
-    <li class="loading">Status updating&#8230;</li>
+    <li class="loading">Status updating...</li>
   </ul>
   
   <a href="https://github.com/sjitech">@sjitech</a> on GitHub
@@ -620,6 +443,7 @@ Octopressを知っていない方もいると思うが、始まる前に少しOc
   
 </aside>
 
+
     </div>
   </div>
   <footer role="contentinfo"><p>
@@ -645,7 +469,10 @@ $(document).ready( function () {
       var disqus_shortname = 'sjitech';
       
         
-        var disqus_script = 'count.js';
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://sjitech.github.io/blog/2013/12/19/ji-shi-taitoru/';
+        var disqus_url = 'http://sjitech.github.io/blog/2013/12/19/ji-shi-taitoru/';
+        var disqus_script = 'embed.js';
       
     (function () {
       var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;

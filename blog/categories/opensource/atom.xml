@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: OpenSource | Technology of SJI]]></title>
+  <link href="http://sjitech.github.io/blog/categories/opensource/atom.xml" rel="self"/>
+  <link href="http://sjitech.github.io/"/>
+  <updated>2013-12-19T10:35:11+09:00</updated>
+  <id>http://sjitech.github.io/</id>
+  <author>
+    <name><![CDATA[株式会社SJI先端技術研究センター]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[How to write new post on octopress]]></title>
+    <link href="http://sjitech.github.io/blog/2013/08/14/how-to-write-new-post-on-octopress/"/>
+    <updated>2013-08-14T14:14:00+09:00</updated>
+    <id>http://sjitech.github.io/blog/2013/08/14/how-to-write-new-post-on-octopress</id>
+    <content type="html"><![CDATA[<p>ここでOctopressで新規記事を投稿する方法を紹介する。<br />
+Octopressを知っていない方もいると思うが、始まる前に少しOctopressを紹介してから進めましょう。</p>
+
+<!-- more -->
+
+
+<h2>Octopressとは？</h2>
+
+<p><a href="http://octopress.org/">Octopress</a>は最近人気上昇のブログエンジンである。特にhackerたちに流行している。膨大なWordPressに対して不満をもって、より簡単、hackerらしいブログツールを望んでいる中でOctopressを生み出した。<br />
+Octopressはrubyとgitを利用して、<a href="http://ja.wikipedia.org/wiki/Markdown">Markdown</a>記法のtextをhtmlページに変換する。<a href="https://github.com/">Github</a>のpage serviceを利用して、簡単にブログを公開できる。Githubを利用しなくてもrsync、<a href="https://www.heroku.com/">Heroku</a>のpage serivceでもブログを構築できる。<br />
+ここでGithubのpage serviceを利用する前提で本ブログに投稿の作業を解説する。</p>
+
+<h2>環境設定</h2>
+
+<p>Windows環境はruby gemの相性がよくないので、Mac OSXまたはLinux環境を推奨する。<br />
+ruby環境は<a href="https://rvm.io/">RVM</a>と<a href="http://rbenv.org/">rbenv</a>があるが、ここでMac OSXのrbenvを例として解説する。</p>
+
+<h4>Octopressの環境構築</h4>
+
+<p>まず、Octopressの<a href="http://octopress.org/docs/setup/">ドキュメント</a>を参考してください。<br />
+事前準備：</p>
+
+<ul>
+<li>Git</li>
+<li>Ruby 1.9.3以上(rbenvでインストール)</li>
+</ul>
+
+
+<p><code>bash
+$ rbenv install 1.9.3-p194
+$ rbenv versions # インストールされたrubyバージョンを確認
+$ rbenv global 1.9.3-p194 # 1.9.3のバージョンを使用
+$ rbenv version # 現在ruby versionを調べる
+</code></p>
+
+<h4>sjitechブログ取得</h4>
+
+<p>Githubからブログのソースを取得する。</p>
+
+<p><code>bash
+$ git clone https://github.com/sjitech/sjitech.github.com.git
+$ cd sjitech.github.com
+$ git checkout source # ブランチを切り替え
+$ ruby --version # 現在ruby versionを調べる
+$ gem install bundler # 依存ライブラリをインストール
+$ rbenv rehash
+$ bundle install
+$ rake setup_github_pages # デプロイ準備フォルダーの作成
+</code></p>
+
+<h2>新規記事</h2>
+
+<h4>新記事の追加</h4>
+
+<p><code>bash
+$ cd sjitech.github.com
+$ rake new_post["記事タイトル"] # Creates source/_posts/yyyy-MM-dd-記事タイトル.markdown
+</code></p>
+
+<h4>markdown編集</h4>
+
+<p>markdownは幾つかのオンラインエディタ(例：<a href="http://markable.in/">markable</a>)を利用できる。Macなら<a href="http://mouapp.com/">Mou</a>を強く推奨する。<br />
+markdown文法は<a href="http://daringfireball.net/projects/markdown/syntax.php">JOHN GRUBERのブログ</a>に参考ください。和訳は<a href="http://blog.2310.net/archives/6">ここ</a>にご参考ください。<br /></p>
+
+<h5>コードブロック</h5>
+
+<p>Octopressにコードブロックは以下のように挿入する。</p>
+
+<p></p>
+
+<pre><code>``` ruby
+puts 'hello markdown!'
+```
+</code></pre>
+
+<p></p>
+
+<p>上記のコードは以下のように表示される。</p>
+
+<p><code>ruby
+puts 'hello markdown!'
+</code></p>
+
+<p>またはtagを使用する。
+</p>
+
+<pre><code>{% codeblock [title] [lang:language] [url] [link text] %}
+code snippet
+{% endcodeblock %}
+</code></pre>
+
+<p></p>
+
+<p>例：
+</p>
+
+<pre><code>{% codeblock Time to be Awesome - awesome.rb %}
+puts "Awesome!" unless lame
+{% endcodeblock %}
+</code></pre>
+
+<p></p>
+
+<p>以下のように表示する。</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>Time to be Awesome &ndash; awesome.rb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='rb'><span class='line'><span class="nb">puts</span> <span class="o">&amp;</span><span class="n">ldquo</span><span class="p">;</span><span class="no">Awesome</span><span class="o">!&amp;</span><span class="n">rdquo</span><span class="p">;</span> <span class="k">unless</span> <span class="n">lame</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<h5>画像</h5>
+
+<p>tagを使う。</p>
+
+<p></p>
+
+<pre><code>{% img [class names] /path/to/image [width] [height] [title text [alt text]] %}
+</code></pre>
+
+<p></p>
+
+<p>例：</p>
+
+<p></p>
+
+<pre><code>{% img http://www.sji-inc.jp/Portals/0/images/index/top-img02.jpg %}
+{% img left /images/sji_logo.png #2 %}
+{% img right /images/sji_outline.jpg Shinagawa Seaside East Tower #3 %}
+</code></pre>
+
+<p></p>
+
+<p>中央寄せに表示する画像：<br />
+<img class="<a" src="href="http://www.sji-inc.jp/Portals/0/images/index/top-img02.jpg">http://www.sji-inc.jp/Portals/0/images/index/top-img02.jpg</a>"><br /></p>
+
+<br />
+
+
+<p><img class="left" src="/images/sji_logo.png" title="#2" >
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+<img class="right" src="/images/sji_outline.jpg" title="Shinagawa Seaside East Tower #3" ><br />
+右寄せに表示する画像<br />
+右寄せに表示する画像<br />
+右寄せに表示する画像<br />
+右寄せに表示する画像<br />
+右寄せに表示する画像<br /></p>
+
+<p>画像ファイルをsource/imagesフォルダーに置いてください。</p>
+
+<h5>改行</h5>
+
+<p>markdownにhtmlタグも使えるが、極力的に避けたほうがいいと思う。ただ、改行の時に&lt;br /&gt;を使っても良い。</p>
+
+<h4>途中の内容をプレビュー</h4>
+
+<p><code>bash
+$ rake generate
+$ rake preview
+</code></p>
+
+<p>とすれば、<a href="http://localhost:4000">http://localhost:4000</a>で確認できる。</p>
+
+<h2>投稿公開</h2>
+
+<p>記事を書き終えたら</p>
+
+<p><code>bash
+$ rake gen_deploy
+$ rake deploy # sourceブランチをmasterブランチにマージし、githubにpushする
+</code></p>
+
+<p>deploy途中にgithubアカウントとパスワードの入力を求める。</p>
+
+<p>最後にsourceブランチも一緒にgithubにpushしましょう。</p>
+
+<p><code>bash
+$ git add .
+$ git commit -m "add new post 記事タイトル"
+$ git push origin source
+</code></p>
+
+<p>では、さっそく記事を投稿しましょう。</p>
+
+<h2>参考リンク</h2>
+
+<ul>
+<li><a href="http://tokkonopapa.github.io/blog/2011/12/30/octopress-on-github-and-bitbucket/">Octopressのインストールから運用管理まで</a></li>
+<li><a href="http://kojika17.com/2013/01/starting-markdown.html">Markdown記法</a></li>
+<li><a href="http://blog.4uing.net/octopress-post/">Octopressで記事を投稿するまでの手順</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+</feed>

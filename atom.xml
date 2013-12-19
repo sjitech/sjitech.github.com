@@ -1,0 +1,2160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Technology of SJI]]></title>
+  <link href="http://sjitech.github.io/atom.xml" rel="self"/>
+  <link href="http://sjitech.github.io/"/>
+  <updated>2013-12-19T10:35:11+09:00</updated>
+  <id>http://sjitech.github.io/</id>
+  <author>
+    <name><![CDATA[株式会社SJI先端技術研究センター]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Node.jsは予想通りオプティマイズされたか？ (大量タイマー)]]></title>
+    <link href="http://sjitech.github.io/blog/2013/12/19/doesnodejsoptimized/"/>
+    <updated>2013-12-19T10:34:00+09:00</updated>
+    <id>http://sjitech.github.io/blog/2013/12/19/doesnodejsoptimized</id>
+    <content type="html"><![CDATA[<p>Javascriptで大量タイマーを利用した場合、普通の実装では、</p>
+
+<pre><code>
+while(true) {  
+  node_js_check_event {  
+    すべてのタイマーを一つずつチェック  ===> 一つずつは効率悪い、オプティマイズすべき。  
+    タイムアウト付き、他のイベントをチェック (epollなど)  
+  }  
+  
+  イベントをディスパッチ...
+}
+</code></pre>
+
+
+<p></p>
+
+<p>上記「すべてのタイマーを一つずつチェック」をオプティマイズすべきと思います。<br/>
+オプティマイズ方法は、B-TREEみたいな構造でタイマーのfireTimeを保存し、<br/>
+チェックはB-TREEから最小fireTimeだけをチェックすれば終わり。</p>
+
+<p>Node.jsはどのように実装したのか？ソースを見てみると、確かにオプティマイズしました！：<br/>
+<b>[closest timer of all timers]</b><br/>
+<a href="https://github.com/joyent/node/blob/master/deps/uv/src/unix/timer.c">https://github.com/joyent/node/blob/master/deps/uv/src/unix/timer.c</a> #120</p>
+
+<pre><code>
+RB_MIN(uv__timers, &loop->timer_handles)  
+</code></pre>
+
+
+<p><b>[pass timeout argument to poll api]</b><br/>
+<a href="https://github.com/joyent/node/blob/master/deps/uv/src/unix/core.c">https://github.com/joyent/node/blob/master/deps/uv/src/unix/core.c</a> #276</p>
+
+<pre><code>
+timeout = 0;  
+if ((mode & UV_RUN_NOWAIT) == 0)  
+    timeout = uv_backend_timeout(loop);  
+
+uv__io_poll(loop, timeout); 
+</code></pre>
+
+
+<p>unixのソースですが、Windows系のソースも似ているロジックが入っています。</p>
+
+<p>最高です。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Node.js vs C vs Java vs Python]]></title>
+    <link href="http://sjitech.github.io/blog/2013/12/19/ji-shi-taitoru/"/>
+    <updated>2013-12-19T10:12:00+09:00</updated>
+    <id>http://sjitech.github.io/blog/2013/12/19/ji-shi-taitoru</id>
+    <content type="html"><![CDATA[<p>Node.js、C、Java、Pythonの比較は複雑ですが、とりあえず、純粋な言語性能を計ってみました。後でもっと現実に近いケースで計りましょう。 <br/>
+今回のケースでは、Node.js = 0.85 C = 0.83 Java = 100+ Pythonぐらい。</p>
+
+<p>厳密に言うと、今回はNode.jsの性能ではなくV8 Javascriptのです。</p>
+
+<p>環境: Mac OS X 10.9, Intel Core i7 CPU 4 Core<br/>
+テスト内容：オブジェクト割当、配列割当、素数計算<br/>
+実行時状況：<br/>
+　　CPU：皆 0% (たまにCは100%)<br/>
+　　スレッド:<br/>
+　　　　Node.js 4個, Cは1個。Javaは17個。<br/>
+　　　　※ javascriptは単スレッドですが、それを管理するために別スレッドがあります、数はCPU数とは関係なくほぼ4固定です。<br/>
+　　　　JavaはCより早いのは、自動的に並列されるかもしれません？</p>
+
+<p>限定ケースの結果ですのでいろいろ訳あり。<br/>
+例えば、C、Pythonはオプティマイズされていない。</p>
+
+<p>ソース：
+Node.js</p>
+
+<pre><code>
+/** This code was based on Google I/O 2012:
+Breaking the JavaScript Speed Limit with V8
+(http://www.youtube.com/watch?v=UJPdhx5zTaw) **/
+
+function Primes() {
+    this.prime_count = 0;
+    this.primes = new Array(50000);
+};
+
+Primes.prototype.getPrimeCount = function() { return this.prime_count; }
+Primes.prototype.getPrime = function(i) { return this.primes[i]; }
+Primes.prototype.addPrime = function(i) { this.primes[this.prime_count++] = i; }
+Primes.prototype.isPrimeDivisible = function(candidate) {
+        for (var i = 1; i &lt; this.prime_count; ++i) {
+            if ((candidate % this.primes[i]) == 0) return true;
+        }
+        return false;
+    }
+
+
+function main() {
+    p = new Primes();
+    var c = 1;
+    var st = Date.now();
+    while (p.getPrimeCount() &lt; 50000) {
+        if (!p.isPrimeDivisible(c)) {
+            p.addPrime(c);
+        }
+        c++;
+    }
+    console.log((Date.now()-st));
+    console.log(p.getPrime(p.getPrimeCount()-1));
+}
+
+main();
+</code></pre>
+
+
+<p>Java</p>
+
+<pre><code>
+import static java.lang.System.out;
+import java.util.Date;
+
+public class primes {
+
+    public static class Primes
+    {
+        public int prime_count;
+        public int[] primes = new int[50000];
+
+        public int getPrimeCount () { return this.prime_count; }
+        public int getPrime (int i) { return this.primes[i]; }
+        public void addPrime (int p) { this.primes[this.prime_count++] = p; }
+
+        public boolean isPrimeDivisible(int candidate) {
+            for (int i = 1; i &lt; this.prime_count; ++i) {
+                if ((candidate % this.primes[i]) == 0) return true;
+            }
+            return false;
+        }
+    }
+    
+    public static void main(String[] args) {
+        Primes p = new Primes();
+        int c = 1;
+        Date st = new Date();
+        while (p.getPrimeCount() &lt; 50000) {
+            if (!p.isPrimeDivisible(c)) {
+                p.addPrime(c);
+            }
+            c++;
+        }
+        out.println(new Date().getTime()-st.getTime());
+        out.println(p.getPrime(p.getPrimeCount() - 1));
+    }
+
+}
+</code></pre>
+
+
+<p>C</p>
+
+<pre><code>
+/** This code was based on Google I/O 2012: 
+Breaking the JavaScript Speed Limit with V8 
+(http://www.youtube.com/watch?v=UJPdhx5zTaw) **/
+
+#include &lt;stdio.h&gt;
+#include &lt;sys/time.h&gt;
+#include &lt;sys/types.h&gt;
+
+static int64_t microSecondOfNow() {
+    struct timeval t;
+    gettimeofday(&t, NULL);
+    return ((int64_t) t.tv_sec) * (1000 * 1000) + t.tv_usec;
+}
+
+class Primes {
+    public:
+        int getPrimeCount() const { return prime_count; }
+        int getPrime(int i) const { return primes[i]; }
+        void addPrime(int i) { primes[prime_count++] = i; }
+        
+        bool isPrimeDivisible(int candidate) {
+            for (int i = 1; i &lt; prime_count; ++i) {
+                if ((candidate % primes[i]) == 0) return true;
+            }
+            return false;
+        }
+    private:
+        volatile int prime_count;
+        volatile int primes[50000];
+};
+
+int main() {
+    Primes p;
+    int c = 1;
+    int64_t st = microSecondOfNow();
+    while (p.getPrimeCount() &lt; 50000) {
+        if (!p.isPrimeDivisible(c)) {
+            p.addPrime(c);
+        }
+        c++;
+    }
+    printf("%lld\n", (microSecondOfNow()-st)/1000);
+    printf("%d\n", p.getPrime(p.getPrimeCount() - 1));
+}
+</code></pre>
+
+
+<p>Python</p>
+
+<pre><code>
+import datetime
+
+class Primes:
+    def __init__(self):
+        self.prime_count = 0
+        self.primes = [0]*50000
+
+    def getPrimeCount(self):
+        return self.prime_count
+
+    def getPrime(self, i):
+        return self.primes[i]
+
+    def addPrime(self, i):
+        self.primes[self.prime_count] = i
+        self.prime_count += 1
+
+    def isPrimeDivisible(self, candidate):
+        for i in range(1, self.prime_count - 1):
+            if (candidate % self.primes[i]) == 0:
+                return True
+        return False
+
+p = Primes()
+c = 1
+st = datetime.datetime.now()
+while p.getPrimeCount() &lt; 50000:
+    if not p.isPrimeDivisible(c):
+        p.addPrime(c)
+    c += 1
+print(datetime.datetime.now()-st);
+print(p.getPrime(p.getPrimeCount()-1))
+
+</code></pre>
+
+
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Chef soloとKnife soloで環境構築を自動化]]></title>
+    <link href="http://sjitech.github.io/blog/2013/11/27/chef-solo-knife-solo-intro/"/>
+    <updated>2013-11-27T20:00:00+09:00</updated>
+    <id>http://sjitech.github.io/blog/2013/11/27/chef-solo-knife-solo-intro</id>
+    <content type="html"><![CDATA[<p class="info">
+最近の人気なインフラ自動化ツールChef soloを利用して、開発環境の構築を自動化してみます。<br />
+</p>
+
+
+
+
+<!-- more -->
+
+
+<h2>参考サイト</h2>
+
+<p>最近Chef soloに関する記事はだいぶ増えています。本文は以下の記事を参考しました。</p>
+
+<ul>
+<li><p><a href="http://ch.nicovideo.jp/dwango-engineer/blomaga/ar322283">Chef Soloと Knife Soloでの ニコニコサーバー構築 (2) 〜導入編〜</a></p></li>
+<li><p><a href="http://knowledge.sakura.ad.jp/tech/867/">サーバー設定ツール「Chef」の概要と基礎的な使い方</a></p></li>
+<li><p><a href="http://tsuchikazu.net/chef_solo_start/">Chef Soloの正しい始め方</a></p></li>
+<li><p><a href="http://qiita.com/kidachi_/items/b222fb2892e6108c46d5">knife-soloによるChefの実行</a></p></li>
+<li><p><a href="http://www.atmarkit.co.jp/ait/articles/1305/24/news003.html">インフラストラクチャ自動化フレームワーク「Chef」の基本</a></p></li>
+</ul>
+
+
+<p>そのほか、伊藤直也さんのブログでchef-soloを紹介され、<a href="http://tatsu-zine.com/books/chef-solo">入門Chef Solo – Infrastructure as Code</a>が達人出版からも発売しています。</p>
+
+<p>上の記事を読んでから、Chefの<a href="http://docs.opscode.com/">公式ドキュメント</a>を読みやすくなると思います。結構の量がありますので、最初からドキュメントを読むとめちゃくちゃわかりにくいんです。</p>
+
+<h2>Chefとは？</h2>
+
+<p>Chefは<a href="http://www.opscode.com">Opscode社</a>によりRubyで開発されたインフラ自動化ツールです。ソースは<a href="https://github.com/opscode/chef">Github</a>に公開サれています。利用者はRubyのDSLでサーバ環境構築の手順を定義し、Rubyスクリプトを実行してサーバ環境を構築できます。</p>
+
+<p>Chefは「料理人」という言葉が由来になります。ChefはKnifeを使って、Recipeに従って、料理（サーバー構築）を作り上げます。構築対象サーバーは「Node」と呼ばれます。そのRecipeの管理単位を「Cookbook」と呼びます。CookbookにはRecipeを加え、設定ファイルのテンプレート「Template」や、環境に応じてその値を変更できる変数を定義した「Attribute」などが含まれています。後ほどそれらの要素を詳細に解説します。</p>
+
+<h3>ClientとServer</h3>
+
+<p>大規模のサーバ群の設定を一括管理する場合、C/S構造のChefを利用します。Chef Serverは構築対象の情報とCookbookを集中管理し、Chef clientはChef serverからCookbookをダウンロードして実行することで自分の環境を構築します。事前にChef clientを構築対象サーバー（Node）でインストールします。</p>
+
+<p><img src="http://sjitech.github.io/images/chef/chef_server_client.png" width="500" title="[Chef server and client architecture]" ></p>
+
+<p>上記の図を示すようにインフラ作業者は自分のマシンでNode情報、Cookbookなどを作成し、Gitで管理します。作成したCookbookをChef serverに配布して、各NodeはChef serverから最新のCookbookなどを取得して、ローカルでChef clientを実行し、環境を構築します。</p>
+
+<p>Chef serverはCouchDB、RabbitMQ、Solrなどのミドルウェアを使用しますが、構築手間がかかります。Opscode社はChefにいくつかの機能を追加した有償版の「Private Chef」やクラウド型の「Hosted Chef」といったサービスを提供しています。</p>
+
+<h3>Chef soloとKnife solo</h3>
+
+<p>Chef soloはChef serverが不要、構築対象サーバー（Node）でCookbookの作成管理、実行などをすべて完結させるスタンドアロンChef clientです。多くの場合、構築対象サーバーはデータセンターに置かれますので（あるいはクラウドVMなど）、Cookbook作成管理はローカルマシンで行って、SSH経由でNodeに配布し、NodeにChef clientコマンドでCookbookなどを実行します。Knife soloはKnife機能を拡張し、Cookbookのリポジトリ作成、SSH経由のNodeに配布、リモートでNodeにChef client実行等を追加します。</p>
+
+<p><img src="http://sjitech.github.io/images/chef/chef_solo.png" width="460" title="[Chef server and client architecture]" ></p>
+
+<h2>今回の環境</h2>
+
+<p>今回knife soloとchef soloで開発環境を構築してみましょう。</p>
+
+<p>ローカル環境：</p>
+
+<ul>
+<li>Mac osx 10.9
+
+<ul>
+<li>Ruby: 1.9.3p448</li>
+<li>Chef: 11.6.0</li>
+</ul>
+</li>
+</ul>
+
+
+<p>構築対象サーバー(ホスト名： tcserver1)：</p>
+
+<ul>
+<li>Debian GNU/Linux 7.1 (wheezy) 32bit
+
+<ul>
+<li>Ruby: 1.9.3p194</li>
+</ul>
+</li>
+</ul>
+
+
+<p>また、SSH鍵認証およびdebain作業アカウントのsudo設定（NOPASSWD)を事前に実施しました。</p>
+
+<h2>インストール</h2>
+
+<p>まず、ローカルマシンでchef soloとknife soloをいれましょう。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>ruby -v
+</span><span class='line'>ruby 1.9.3p448 <span class="o">(</span>2013-06-27 revision 41675<span class="o">)</span> <span class="o">[</span>x86_64-darwin12.4.0<span class="o">]</span>
+</span><span class='line'><span class="nv">$ </span>gem i chef --no-ri --no-rdoc            <span class="c"># chefをインストール（knifeを含む）</span>
+</span><span class='line'><span class="nv">$ </span>gem i knife-solo --no-ri --no-rdoc      <span class="c"># knife soloをインストール</span>
+</span><span class='line'><span class="nv">$ </span>gem i berkshelf --no-ri --no-rdoc       <span class="c"># cookbookを管理するツールBerkshelfをインストール</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>作業手順</h3>
+
+<p>Knife soloは以下のコマンドがあります。init、prepareとcookをよく使っています。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>knife solo
+</span><span class='line'>FATAL: Cannot find sub <span class="nb">command </span><span class="k">for</span>: <span class="s1">&#39;solo&#39;</span>
+</span><span class='line'>Available solo subcommands: <span class="o">(</span><span class="k">for </span>details, knife SUB-COMMAND --help<span class="o">)</span>
+</span><span class='line'>
+</span><span class='line'>** SOLO COMMANDS **
+</span><span class='line'>knife solo bootstrap <span class="o">[</span>USER@<span class="o">]</span>HOSTNAME <span class="o">[</span>JSON<span class="o">]</span>  <span class="o">(</span>options<span class="o">)</span>
+</span><span class='line'>knife solo clean <span class="o">[</span>USER@<span class="o">]</span>HOSTNAME
+</span><span class='line'>knife solo cook <span class="o">[</span>USER@<span class="o">]</span>HOSTNAME <span class="o">[</span>JSON<span class="o">]</span>  <span class="o">(</span>options<span class="o">)</span>          <span class="c"># 対象サーバーのChef clientをリモートで実行</span>
+</span><span class='line'>knife solo init DIRECTORY                                  <span class="c"># Chefリポジトリの雛形を作成</span>
+</span><span class='line'>knife solo prepare <span class="o">[</span>USER@<span class="o">]</span>HOSTNAME <span class="o">[</span>JSON<span class="o">]</span>  <span class="o">(</span>options<span class="o">)</span>       <span class="c"># 対象サーバーのChef client実行を準備（初回にChef clientをインストール）</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>リポジトリの作成</h4>
+
+<p>「knife solo init リポジトリ名」でリポジトリの雛形を生成します。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>knife solo init hellochef
+</span><span class='line'>Creating kitchen...
+</span><span class='line'>Creating knife.rb in kitchen...
+</span><span class='line'>Creating cupboards...
+</span><span class='line'><span class="o">[</span>wang@wang-mbp<span class="o">]</span>-<span class="o">[</span>0<span class="o">]</span>  <span class="o">[</span>/Users/wang/work<span class="o">]</span>
+</span><span class='line'><span class="nv">$ </span>tree hellochef/
+</span><span class='line'>hellochef/
+</span><span class='line'>├── cookbooks             <span class="c"># ライブラリなCookbook（Opscode communityからダウンロードされたもの）はこの中に入ります。</span>
+</span><span class='line'>├── data_bags             <span class="c"># 主にパスワード情報などを保存しておく場所</span>
+</span><span class='line'>├── nodes                 <span class="c"># 構築対象サーバーの情報はここに書いておきます</span>
+</span><span class='line'>├── roles                 <span class="c"># 役割（Webサーバー、DBサーバーなど）ごとの定義を書きます</span>
+</span><span class='line'>└── site-cookbooks        <span class="c"># 自分で作ったCookbook（セットアップ手順などを書いたRecipe）はこの中に入ります。</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>構築対象サーバー設定</h4>
+
+<p>「knife solo prepare wang@tcserver1」でtcserver1を構築対象サーバーとしてChef clientをインストールし、構築設定ファイルnodes/tcserver1.jsonを作成します。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>knife solo prepare wang@tcserver1
+</span><span class='line'>Bootstrapping Chef...
+</span><span class='line'>Updating apt caches...
+</span><span class='line'>Installing required packages...
+</span><span class='line'>Installing rubygems from source...
+</span><span class='line'>......
+</span><span class='line'>Generating node config <span class="s1">&#39;nodes/tcserver1.json&#39;</span>...
+</span><span class='line'><span class="nv">$ </span>tree
+</span><span class='line'>.
+</span><span class='line'>├── cookbooks
+</span><span class='line'>├── data_bags
+</span><span class='line'>├── nodes
+</span><span class='line'>│   └── tcserver1.json
+</span><span class='line'>├── roles
+</span><span class='line'>└── site-cookbooks
+</span><span class='line'>
+</span><span class='line'>5 directories, 1 file
+</span><span class='line'><span class="nv">$ </span>cat nodes/tcserver1.json
+</span><span class='line'><span class="o">{</span><span class="s2">&quot;run_list&quot;</span>:<span class="o">[]}</span>               <span class="c"># tcserver1.jsonの初期内容は空です</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>サーバー構築</h4>
+
+<p>「knife solo cook wang@tcserver1」でtcserver1を構築してみましょう。（tcserver1.jsonは空なので、実際に何もしません）</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>knife solo cook wang@tcserver1
+</span><span class='line'>Running Chef on tcserver1...
+</span><span class='line'>Checking Chef version...
+</span><span class='line'>Uploading the kitchen...
+</span><span class='line'>Generating solo config...
+</span><span class='line'>Running Chef...
+</span><span class='line'>Starting Chef Client, version 11.6.0
+</span><span class='line'>Compiling Cookbooks...
+</span><span class='line'>Converging 0 resources
+</span><span class='line'>Chef Client finished, 0 resources updated
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h5>Opscode communityに公開されたCookbookを取得</h5>
+
+<p>Cookbookを一から作成する必要ではありません。<a href="http://community.opscode.com/cookbooks">Opscode community</a>に数多くのCookbookを公開しています。「git clone」でGithubから取得しますが、Berkshelfというツールを利用すれば、Rubyのbundler風に扱うことができます。</p>
+
+<blockquote><p>Opscode CommunityからCookbookをダウンロードするため、ユーザ登録し、秘密鍵をダウンロードしておく必要があります。
+秘密鍵をDownloadしたら、~/.chef/username.pemにパーミッション600で保存しておきましょう。更にリポジトリの.chef/knife.rbに以下の記述を追記します。</p>
+
+<blockquote><p>client_key    &ldquo;/Users/wang/.chef/username.pem&rdquo;</p></blockquote></blockquote>
+
+<ul>
+<li>まずリポジトリにBerksfileを作成します。</li>
+</ul>
+
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>cat Berksfile
+</span><span class='line'>site:opscode
+</span><span class='line'>
+</span><span class='line'>cookbook <span class="s1">&#39;apt&#39;</span>
+</span><span class='line'>cookbook <span class="s1">&#39;build-essential&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>Berkshelfでcookbookをダウンロードします。</li>
+</ul>
+
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>berks --version
+</span><span class='line'>Berkshelf <span class="o">(</span>2.0.10<span class="o">)</span>
+</span><span class='line'><span class="nv">$ </span>berks install --path cookbooks/
+</span><span class='line'>Using apt <span class="o">(</span>2.3.0<span class="o">)</span>
+</span><span class='line'>Installing build-essential <span class="o">(</span>1.4.2<span class="o">)</span> from site: <span class="s1">&#39;http://cookbooks.opscode.com/api/v1/cookbooks&#39;</span>
+</span><span class='line'><span class="o">[</span>wang@wang-mbp<span class="o">]</span>-<span class="o">[</span>0<span class="o">]</span>  <span class="o">[</span>/Users/wang/work/hellochef<span class="o">]</span>
+</span><span class='line'><span class="nv">$ </span>tree -d cookbooks/
+</span><span class='line'>cookbooks/
+</span><span class='line'>├── apt
+</span><span class='line'>│   ├── attributes
+</span><span class='line'>│   ├── files
+</span><span class='line'>│   │   └── default
+</span><span class='line'>│   ├── libraries
+</span><span class='line'>│   ├── providers
+</span><span class='line'>│   ├── recipes
+</span><span class='line'>│   ├── resources
+</span><span class='line'>│   └── templates
+</span><span class='line'>│       ├── debian-6.0
+</span><span class='line'>│       ├── default
+</span><span class='line'>│       └── ubuntu-10.04
+</span><span class='line'>└── build-essential
+</span><span class='line'>    ├── attributes
+</span><span class='line'>    └── recipes
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h5>Cookbook新規作成</h5>
+
+<p>「knife cookbook create demo -o site-cookbooks」でdemoというCookbookの雛形をsite-cookbooksフォルダに新規作成します。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>knife cookbook create demo -o site-cookbooks
+</span><span class='line'>** Creating cookbook demo
+</span><span class='line'>** Creating README <span class="k">for </span>cookbook: demo
+</span><span class='line'>** Creating CHANGELOG <span class="k">for </span>cookbook: demo
+</span><span class='line'>** Creating metadata <span class="k">for </span>cookbook: demo
+</span><span class='line'><span class="nv">$ </span>tree site-cookbooks/
+</span><span class='line'>site-cookbooks/
+</span><span class='line'>└── demo
+</span><span class='line'>    ├── CHANGELOG.md
+</span><span class='line'>    ├── README.md
+</span><span class='line'>    ├── attributes
+</span><span class='line'>    ├── definitions
+</span><span class='line'>    ├── files
+</span><span class='line'>    │   └── default
+</span><span class='line'>    ├── libraries
+</span><span class='line'>    ├── metadata.rb
+</span><span class='line'>    ├── providers
+</span><span class='line'>    ├── recipes
+</span><span class='line'>    │   └── default.rb
+</span><span class='line'>    ├── resources
+</span><span class='line'>    └── templates
+</span><span class='line'>        └── default
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>demoにいくつかの子フォルダーを生成しました。各フォルダーの内容を以下に紹介しましょう。</p>
+
+<h2>アーキテクチャと構成要素</h2>
+
+<p>上記のdemo cookbookのフォルダー構造によって、Chef soloの各要素を解説します。</p>
+
+<h3>リポジトリ</h3>
+
+<p>リポジトリは「knife solo init」コマンドにより生成したChef client実行用のファイルの置く場です。料理人に対して、料理を作る場所（キチン）の意味です。
+リポジトリに構築対象サーバーの情報（Nodes）と構築手順（Cookbooks）を含めます。</p>
+
+<h3>Cookbooks</h3>
+
+<p>サーバー構築の作業手順（Recipe、Attribute、Template）をまとめるものです。サーバー環境を構築する時、様々なミドルウェア、システム設定及びアプリケーション・インストールの作業を行います。一般にあるソフトのインストールと設定を１つのRecipeに集約します。</p>
+
+<p>ソフトの設定ファイルがNodeの情報により動的に生成される場合は多いですので、Rubyのテンプレート・ツールeRubyを利用して、設定ファイルの雛形を定義します。Chef clientを実行する時にNode環境と合わせる設定ファイルを生成します。</p>
+
+<p>JavaのビルドツールAntと比較すると、build.xml(&lt;project /&gt;タグ)と同等なものです。</p>
+
+<p>上記のdemoのフォルダーにいくつかの子フォルダーはありますが、その中にattributes、recipes、templatesをよく使っています。</p>
+
+<h4>Recipe</h4>
+
+<p>Recipeはサーバー構築手順を定義するものです。Cookbookに複数のRecipeを定義できますが、保守性の観点からRecipeにNode構築作業を適当に分割して、それぞれのRecipeに手順をまとめます。</p>
+
+<p>例えば、LinuxでMysqlサーバーを構築する場合、システム設定（ベースシステムソフトGccなどのインストールと設定、ユーザアカウント管理）とMysqlのインストール、設定、サービス起動を別々のRecipeに記述したほうが良いかと思います。</p>
+
+<p>Antと対照すると、Recipeは&lt;task /&gt;と同等なものです。&lt;task /&gt;に&lt;mkdir /&gt;、&lt;copy /&gt;、&lt;javac /&gt;などの内部<a href="http://ant.apache.org/manual/tasklist.html">タスク</a>を組み合わせて、ビルド作業を記述しますが、Recipeでは様々な<a href="http://docs.opscode.com/resource.html#resources">Resource</a>を組み合わせて、構築作業を記述します。</p>
+
+<h4>resource</h4>
+
+<p>構築作業の１つのステップです。ファイルコピー、パッケージ・インストール等の作業を定義します。ChefにあらゆるResourceを用意しますが、自分でRubyの関数を作成し、カスタマイズなResourceとして利用できます。</p>
+
+<p>構築作業は冪等性（べきとうせい）を求めます。同じ作業を何度実行しても同じ結果になるべき特性です。それで、自分が作成したResourceまたはbashスクリプト再利用の場合、作業前のサーバー状態と作業後の状態をきちんと管理する必要です。</p>
+
+<h4>attribute</h4>
+
+<p>RecipeはRubyのコードですので、自由にRuby変数を定義できます。複数のRecipeの間に変数を共有する場合、Attributeを利用します。</p>
+
+<p>例えば：</p>
+
+<p>attributesにdefault連想配列を定義します。</p>
+
+<figure class='code'><figcaption><span>site-cookbooks/demo/attributes/default.rb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'>  <span class="n">default</span><span class="o">[</span><span class="s2">&quot;mysql&quot;</span><span class="o">][</span><span class="s2">&quot;package_name&quot;</span><span class="o">]</span> <span class="o">=</span> <span class="s2">&quot;mysql5-server&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>recipeにnode連想配列からdefaultの値を取得します。</p>
+
+<figure class='code'><figcaption><span>site-cookbooks/demo/recipes/default.rb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'>  <span class="n">package</span> <span class="n">node</span><span class="o">[</span><span class="s2">&quot;mysql&quot;</span><span class="o">][</span><span class="s2">&quot;package_name&quot;</span><span class="o">]</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">action</span> <span class="ss">:install</span>
+</span><span class='line'>  <span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Chefを実行する時に値を代入して、構築作業を行います。</p>
+
+<figure class='code'><figcaption><span>実行時のコード </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">package</span> <span class="s2">&quot;mysql5-server&quot;</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">action</span> <span class="ss">:install</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>template</h4>
+
+<p><a href="http://magazine.rubyist.net/?0017-BundledLibraries">eRuby</a>で記述したソフトの設定ファイルの雛形です。Chef clientを実行する時、&lt;%= &gt;で囲む変数の値を代入し、構築対象サーバーの環境と合わせる設定ファイルを生成します。</p>
+
+<p>例えば：</p>
+
+<figure class='code'><figcaption><span>site-cookbooks/demo/templates/hadoop/core-site.erb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='xml'><span class='line'>  <span class="nt">&lt;property&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;name&gt;</span>hadoop.tmp.dir<span class="nt">&lt;/name&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;value&gt;</span><span class="err">&lt;</span>%= @hadoop_tmp %&gt;<span class="nt">&lt;/value&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;description&gt;</span>A base directory for temporary directories.<span class="nt">&lt;/description&gt;</span>
+</span><span class='line'>  <span class="nt">&lt;/property&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>recipeのtemplate resourceの定義に変数hadoop_tmpの値を渡します。</p>
+
+<figure class='code'><figcaption><span>site-cookbooks/demo/recipes/hadoop.rb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'>    <span class="n">template</span> <span class="s2">&quot;/opt/hadoop/etc/hadoop/core-site.xml&quot;</span> <span class="k">do</span>
+</span><span class='line'>        <span class="n">source</span> <span class="s2">&quot;hadoop/core-site.erb&quot;</span>
+</span><span class='line'>      <span class="o">.</span><span class="n">.</span><span class="o">.</span><span class="n">.</span><span class="o">.</span><span class="n">.</span>
+</span><span class='line'>
+</span><span class='line'>       <span class="n">variables</span><span class="p">(</span>
+</span><span class='line'>           <span class="ss">:hadoop_tmp</span>  <span class="o">=&gt;</span>  <span class="s2">&quot;/opt/hadoop/tmp&quot;</span><span class="p">,</span>
+</span><span class='line'>          <span class="o">.</span><span class="n">.</span><span class="o">.</span><span class="n">.</span><span class="o">.</span><span class="n">.</span>
+</span><span class='line'>       <span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>       <span class="n">not_if</span> <span class="p">{</span> <span class="no">File</span><span class="o">.</span><span class="n">exists?</span><span class="p">(</span><span class="s2">&quot;/opt/hadoop/etc/hadoop/core-site.xml&quot;</span><span class="p">)}</span>
+</span><span class='line'>    <span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Chefを実行して、生成した設定ファイルの内容は以下のようです。</p>
+
+<figure class='code'><figcaption><span>/opt/hadoop/etc/hadoop/core-site.xml </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='xml'><span class='line'>  <span class="nt">&lt;property&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;name&gt;</span>hadoop.tmp.dir<span class="nt">&lt;/name&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;value&gt;</span>/opt/hadoop/tmp<span class="nt">&lt;/value&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;description&gt;</span>A base directory for temporary directories.<span class="nt">&lt;/description&gt;</span>
+</span><span class='line'>  <span class="nt">&lt;/property&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>nodes</h3>
+
+<p>構築対象サーバーの情報を置く場所です。サーバーごとにjsonファイルで構築内容を記述します。</p>
+
+<blockquote><p>他にRoles、data_bags、Enviroments等のフォルダーも存在しますが、<a href="http://docs.opscode.com/">公式ドキュメント</a>を参考すれば良いです。ここで割愛します。
+Rolesはサーバー役割（DBサーバかWebサーバーか）を分けて定義します。Enviromentは環境種類（開発環境か本番環境かテスト環境か）によって構築内容を別々記述します。
+data_bagsは暗号化したいDB接続パスワードなど情報を定義する場所です。</p></blockquote>
+
+<h2>サンプル</h2>
+
+<p>これから環境構築の一般な作業をChef soloで試してみましょう。</p>
+
+<h3>Hello Chef</h3>
+
+<p>メッセージを出力します。</p>
+
+<figure class='code'><figcaption><span>site-cookbooks/demo/recipes/default.rb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">log</span> <span class="s1">&#39;message&#39;</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">message</span> <span class="s2">&quot;hello chef for tcserver setup&quot;</span>
+</span><span class='line'>    <span class="n">level</span> <span class="ss">:info</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>パッケージのインストール</h3>
+
+<p>ソフトをインストールします。Chef内部でDebian系（apt-get）とRedhat系(yum)の差異を吸収します。</p>
+
+<figure class='code'><figcaption><span>site-cookbooks/demo/recipes/default.rb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="sx">%w(curl unzip tree wget nkf ctags)</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">pkg</span><span class="o">|</span>
+</span><span class='line'>    <span class="n">package</span> <span class="n">pkg</span> <span class="k">do</span>
+</span><span class='line'>        <span class="n">action</span> <span class="ss">:install</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>JDKのインストール</h3>
+
+<p>JDKのインストールファイルをコマンドライン（wgetまたはcurl）でダウンロードできませんので、事前にブラウザでダウンロードして、site-cookbooks/demp/files/defaultに置いて、cookbook_file resourceを使用して、どこかにコピーして、JDKをインストールします。</p>
+
+<p>例：</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>ls -l site-cookbooks/demo/files/default/
+</span><span class='line'>total 133M
+</span><span class='line'>drwxr-xr-x 4 wang  136 10 25 18:11 ./
+</span><span class='line'>drwxr-xr-x 4 wang  136 10 25 16:01 ../
+</span><span class='line'>-rw-r--r-- 1 wang 133M 10 25 18:12 jdk-7u45-linux-i586.tar.gz
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>site-cookbooks/demo/recipes/default.rb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">cookbook_file</span> <span class="s2">&quot;/opt/jdk-7u45-linux-i586.tar.gz&quot;</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">source</span>           <span class="s2">&quot;jdk-7u45-linux-i586.tar.gz&quot;</span>
+</span><span class='line'>    <span class="n">mode</span>             <span class="mo">0644</span>
+</span><span class='line'>    <span class="n">owner</span>            <span class="s2">&quot;hadoop&quot;</span>
+</span><span class='line'>    <span class="n">group</span>            <span class="s2">&quot;hadoop&quot;</span>
+</span><span class='line'>    <span class="n">action</span>           <span class="ss">:create_if_missing</span>
+</span><span class='line'>    <span class="n">not_if</span>           <span class="p">{</span><span class="no">File</span><span class="o">.</span><span class="n">exists?</span><span class="p">(</span><span class="s2">&quot;/opt/jdk7&quot;</span><span class="p">)}</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>シェールスクリプトの例</h3>
+
+<p><a href="http://docs.opscode.com/resource.html#resources">Resource</a>に存在しない処理を行うため、bashスクリプトで構築作業を実現するのは普通の考えです。
+上記のJDKをbashスクリプトでインストールしてみます。</p>
+
+<figure class='code'><figcaption><span>site-cookbooks/demo/recipes/default.rb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">bash</span> <span class="s2">&quot;install_java_packages&quot;</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">user</span> <span class="s2">&quot;hadoop&quot;</span>
+</span><span class='line'>    <span class="n">cwd</span> <span class="sr">/opt</span>
+</span><span class='line'><span class="sr">    code &lt;&lt;-EOH</span>
+</span><span class='line'><span class="sr">        if ! ls /o</span><span class="n">pt</span><span class="o">/</span><span class="n">jdk1</span><span class="o">.</span><span class="mi">7</span><span class="o">.</span><span class="mo">0_45</span> <span class="o">&gt;</span> <span class="sr">/dev/nu</span><span class="n">ll</span> <span class="mi">2</span><span class="o">&gt;&amp;</span><span class="mi">1</span><span class="p">;</span> <span class="k">then</span>
+</span><span class='line'>            <span class="n">tar</span> <span class="n">zxf</span> <span class="n">jdk</span><span class="o">-</span><span class="mi">7</span><span class="n">u45</span><span class="o">-</span><span class="n">linux</span><span class="o">-</span><span class="n">i586</span><span class="o">.</span><span class="n">tar</span><span class="o">.</span><span class="n">gz</span>
+</span><span class='line'>            <span class="n">ln</span> <span class="o">-</span><span class="n">s</span> <span class="sr">/opt/</span><span class="n">jdk1</span><span class="o">.</span><span class="mi">7</span><span class="o">.</span><span class="mo">0_45</span> <span class="o">/</span><span class="n">opt</span><span class="o">/</span><span class="n">jdk7</span>
+</span><span class='line'>            <span class="n">sudo</span> <span class="n">chown</span> <span class="o">-</span><span class="n">R</span> <span class="ss">hadoop</span><span class="p">:</span><span class="n">hadoop</span> <span class="sr">/opt/</span><span class="n">jdk1</span><span class="o">.</span><span class="mi">7</span><span class="o">.</span><span class="mo">0_45</span> <span class="o">/</span><span class="n">opt</span><span class="o">/</span><span class="n">jdk7</span>
+</span><span class='line'>            <span class="n">rm</span> <span class="o">-</span><span class="n">f</span> <span class="n">jdk</span><span class="o">-</span><span class="mi">7</span><span class="n">u45</span><span class="o">-</span><span class="n">linux</span><span class="o">-</span><span class="n">i586</span><span class="o">.</span><span class="n">tar</span><span class="o">.</span><span class="n">gz</span>
+</span><span class='line'>        <span class="n">fi</span>
+</span><span class='line'>  <span class="no">EOH</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<blockquote><p>ここで冪等性を考慮する必要です。スクリプトを何回実行しても同じ結果を得るのは重要です。</p></blockquote>
+
+<p>Chefでは様々なResourceを用意しました。それぞれを組み合わせて、ほとんどのサーバー構築の作業を対応できます。以下ではよく使う便利なResourceです。</p>
+
+<table>
+<thead>
+<tr>
+<th align="left">Resource           </th>
+<th align="left"> 機能     </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left">users              </td>
+<td align="left"> OSのユーザ管理      </td>
+</tr>
+<tr>
+<td align="left">group              </td>
+<td align="left"> OSのグループ管理      </td>
+</tr>
+<tr>
+<td align="left">cookbook_file      </td>
+<td align="left"> ファイル配布    </td>
+</tr>
+<tr>
+<td align="left">directory          </td>
+<td align="left"> ディレクトリ管理</td>
+</tr>
+<tr>
+<td align="left">template           </td>
+<td align="left"> テンプレートファイルを扱う</td>
+</tr>
+<tr>
+<td align="left">package            </td>
+<td align="left"> パッケージ管理</td>
+</tr>
+<tr>
+<td align="left">service            </td>
+<td align="left"> OSサービスの起動・停止・有効化・無効化</td>
+</tr>
+<tr>
+<td align="left">bash               </td>
+<td align="left"> bashスクリプトの実行</td>
+</tr>
+<tr>
+<td align="left">cron               </td>
+<td align="left"> cronジョブの管理</td>
+</tr>
+</tbody>
+</table>
+
+
+<h3>Recipeの呼び出し</h3>
+
+<p>site-cookbooks/demo/recipes/default.rbはcookbook名（demo）を直接に呼びます。</p>
+
+<figure class='code'><figcaption><span>nodes/tcserver1.json </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="p">{</span><span class="nt">&quot;run_list&quot;</span><span class="p">:[</span><span class="s2">&quot;recipe[demo]&quot;</span><span class="p">]}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>default以外のrecipe(site-cookbooks/demo/recipes/hadoop.rb)を::で引用します。</p>
+
+<figure class='code'><figcaption><span>nodes/tcserver1.json </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="p">{</span><span class="nt">&quot;run_list&quot;</span><span class="p">:[</span><span class="s2">&quot;recipe[demo::hadoop]&quot;</span><span class="p">]}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>まとめ</h2>
+
+<p>以上、Chefの概要や基本的な使い方を一通り説明しましたが、ここで紹介した機能はChefの機能のほんの一部です。また経験不足なので、今までのChef soloを使った感想をまとめます。</p>
+
+<ul>
+<li><p>Chefを使って、文字記述の手順を省け、Rubyコードで環境構築を手順化します。大量サーバーの構築は楽になります。</p></li>
+<li><p>Chefが便利なのは、Opscode communityやサードパーティが公開しているCookbookを流用することで、設定ファイルの記述を少なくできる点です。</p></li>
+<li><p>ResourceやCookbookはOSやLinuxディストリビューションの種別が異なっても同じように利用できることから、管理対象のOSを問わず同じ手順で管理が行えます。</p></li>
+<li><p>公開されているCookbookやChefのソースは複雑になっており、Cookbookの依存関係を管理するツールもありませんので、動作内容の把握や問題発生時の解決に手間取ることもあります。</p></li>
+<li><p>個人的にすべてのファイルをRubyで記述し、jsonファイルを使わない方が良いかなと思います。なお、フォルダ構造は複雑すぎで、もっと簡単な構成を改善できるはずです。</p></li>
+<li><p>attributesの変数をroles, recipe等に上書きできるのは大変わかりにくい仕組みです。</p></li>
+<li><p>Recipeの記述自由度は高すぎて何が正しいか、あるいは何がベスト・プラクティスであるかよくわかっていません。</p></li>
+</ul>
+
+
+<p>以上個人の見解ですが、間違い等あれば指摘していただきたいです。もっと深く勉強すれば、ぜひ<a href="http://tatsu-zine.com/books/chef-solo">naoyaさんの本</a>を読んで頂ければと思います。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Build a Java framework from scratch(1)]]></title>
+    <link href="http://sjitech.github.io/blog/2013/10/09/build-a-java-framework-from-scratch-1/"/>
+    <updated>2013-10-09T15:02:00+09:00</updated>
+    <id>http://sjitech.github.io/blog/2013/10/09/build-a-java-framework-from-scratch-1</id>
+    <content type="html"><![CDATA[<p class="info">
+本連載はスクラッチで軽量Javaフレームワークの設計、実現方法を解説します。Javaの知識を深めながら、Spring FrameworkのようなAOPxDIフレームワークをゼロから作成してみます。
+</p>
+
+
+<p>自力でAOPとDI機能を実現するため、ある程度のJVM知識を習得する必要です。ですから、本題の前にJVM知識を紹介していきたいです。クラスレイアウト定義の解説を始め、JVMランタイム仕組みを紹介し、ASMフレームワークでJava classを操作する方法からAOPとDI機能の実装を展開します。<br /></p>
+
+<!-- more -->
+
+
+<p>では、早速<a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html">クラスレイアウト仕様</a>を解説します。以下の内容は<a href="http://docs.oracle.com/javase/specs/jvms/se7/html/index.html">Java仮想マシン仕様SE 7版</a>を参照します。一部用語を英語のまま使用します。</p>
+
+<h2>テスト環境</h2>
+
+<ul>
+<li>OS: Mac OSX 10.8.5</li>
+<li>Java: Oracle 1.7.0_40(64bit)</li>
+</ul>
+
+
+<h2>Java class format</h2>
+
+<p>バイナリJavaクラスファイルは以下の特徴があります。<br /></p>
+
+<ul>
+<li>ファイルは8ビット（1バイト）のストリームで構成されます。8ビット以上のデータはBig-Endianの順番で保存します。いわば、高いバイトは低いアドレスに保存されます。（IBMのPowerPCプロセッサはこの順番を採用します。Intelのx86プロセッサは逆順番のLittle-Endianを採用します）。</li>
+<li>クラスのレイアウトはC言語の構造体のような可変長配列で構成されます。主に2つのデータ・タイプ（符号なし整数とテーブル）があります。
+
+<ul>
+<li><code>u1</code>: 符号なし8ビット整数</li>
+<li><code>u2</code>: Big-Endianバイト順の符号なし16ビット整数</li>
+<li><code>u4</code>: Big-Endianバイト順の符号なし32ビット整数</li>
+<li><code>テーブル</code>: いくつかの型の可変長の配列。テーブルのテーブル内の項目数はカウント数により識別されるが、テーブルのバイト内のサイズは項目それぞれを調査することのみで決定される。</li>
+</ul>
+</li>
+</ul>
+
+
+<p><a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html">Java仮想マシン仕様</a>に記載されたJavaクラスの構造は以下のようです。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">ClassFile</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">u4</span>             <span class="n">magic</span><span class="p">;</span>                                    <span class="c1">// マジックナンバー : 0xCAFEBABE</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">minor_version</span><span class="p">;</span>                            <span class="c1">// フォーマットのマイナーバージョン</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">major_version</span><span class="p">;</span>                            <span class="c1">// フォーマットのメジャーバージョン</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">constant_pool_count</span><span class="p">;</span>                      <span class="c1">// 定数プール数</span>
+</span><span class='line'>    <span class="n">cp_info</span>        <span class="n">constant_pool</span><span class="p">[</span><span class="n">constant_pool_count</span><span class="o">-</span><span class="mi">1</span><span class="p">];</span>     <span class="c1">// 定数プール情報配列</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">access_flags</span><span class="p">;</span>                             <span class="c1">// アクセスフラグ : 例えばクラスがpublicかabstractかなど</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">this_class</span><span class="p">;</span>                               <span class="c1">// thisクラス</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">super_class</span><span class="p">;</span>                              <span class="c1">// 親クラス</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">interfaces_count</span><span class="p">;</span>                         <span class="c1">// インタフェース数</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">interfaces</span><span class="p">[</span><span class="n">interfaces_count</span><span class="p">];</span>             <span class="c1">// インタフェースの情報配列</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">fields_count</span><span class="p">;</span>                             <span class="c1">// クラスまたインスタンス変数の個数</span>
+</span><span class='line'>    <span class="n">field_info</span>     <span class="n">fields</span><span class="p">[</span><span class="n">fields_count</span><span class="p">];</span>                     <span class="c1">// クラスまたインスタンス変数情報配列</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">methods_count</span><span class="p">;</span>                            <span class="c1">// メソッド数（親クラスからのメソッドが含まない）</span>
+</span><span class='line'>    <span class="n">method_info</span>    <span class="n">methods</span><span class="p">[</span><span class="n">methods_count</span><span class="p">];</span>                   <span class="c1">// メソッドの情報配列</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">attributes_count</span><span class="p">;</span>                         <span class="c1">// クラス内の任意属性の数量</span>
+</span><span class='line'>    <span class="n">attribute_info</span> <span class="n">attributes</span><span class="p">[</span><span class="n">attributes_count</span><span class="p">];</span>             <span class="c1">// クラス内の任意属性の情報配列（例えばソースファイル名、行番号など）</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>コメントを見ればわかりますが、少し説明します。constant_pool[constant_pool_count-1]を一見すると配列ですが、各要素のタイプと長さは異なっています。</p>
+
+<ul>
+<li>u4 magic: マジックナンバーです。このファイルはpng画像ファイルではなく、JavaソースをコンパイルしたJava classファイルであることを示します。4バイトの0xCAFEBABEで固定です。</li>
+<li>u2 major_version: 使用されるクラスファイルフォーマットのメジャーバージョン数です。
+
+<ul>
+<li>J2SE 7 = 51（0x33 十六進）</li>
+<li>J2SE 6.0 = 50（0x32 十六進）</li>
+<li>J2SE 5.0 = 49（0x31 十六進）</li>
+<li>JDK 1.4 = 48（0x30 十六進）</li>
+</ul>
+</li>
+<li>u2 constant_pool_count: 定数プールのカウントです。</li>
+<li><p>cp_info constant_pool[constant_pool_count-1]: 定数プールテーブル、リテラル数、文字列、そしてクラスやメソッドへの参照といった項目を含む、可変長の定数プールエントリです。
+合計エントリ（定数テーブルカウント &ndash; 1）数を含む、1から始まり索引付けされます。Java SE 7 Editionに14種類のcp_infoはあります。tagの値で区別します。</p>
+
+<table>
+<thead>
+<tr>
+<th align="left">  種類                              </th>
+<th align="center"> tag </th>
+<th align="left"> 内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left"> CONSTANT_Utf8_info                 </td>
+<td align="center"> 1   </td>
+<td align="left"> UTF-8 (Unicode) 文字列</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_Integer_info              </td>
+<td align="center"> 3   </td>
+<td align="left"> Integer : Big-Endianフォーマットによる符号付き32ビット2の補数</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_Float_info                </td>
+<td align="center"> 4   </td>
+<td align="left"> Float : 32ビット単精度IEEE 754浮動小数点数</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_Long_info                 </td>
+<td align="center"> 5   </td>
+<td align="left"> Long : Big-Endianフォーマットによる符号付き64ビット2の補数（定数テーブルの2つのスロットを占める）</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_Double_info               </td>
+<td align="center"> 6   </td>
+<td align="left"> Double : 64ビット倍精度IEEE 754浮動小数点数（定数テーブルの2つのスロットを占める）</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_Class_info                </td>
+<td align="center"> 7   </td>
+<td align="left"> クラス参照 : （内部フォーマットによる）完全修飾型クラス名を含むUTF-8文字列による定数テーブル内のインデックス（Big-Endian）</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_String_info               </td>
+<td align="center"> 8   </td>
+<td align="left"> 文字列参照 : UTF-8による定数プール内のインデックス（Big-Endian）</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_Fieldref_info             </td>
+<td align="center"> 9   </td>
+<td align="left"> フィールド参照 : 定数プール内にある2つのインデックス、最初はクラス参照で次は名前および型の記述（Big-Endian）</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_Methodref_info            </td>
+<td align="center"> 10  </td>
+<td align="left"> メソッド参照 : 定数プール内にある2つのインデックス、最初はクラス参照で次は名前および型の記述（Big-Endian）</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_InterfaceMethodref_info   </td>
+<td align="center"> 11  </td>
+<td align="left"> インタフェース参照 : 定数プール内にある2つのインデックス、最初はクラス参照で次は名前および型の記述（Big-Endian）</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_NameAndType_info          </td>
+<td align="center"> 12  </td>
+<td align="left"> 名前および型の記述 : UTF-8による定数プール内のインデックス、最初は名前（識別子）を表し次は特別にエンコードされた型</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_MethodHandle_info         </td>
+<td align="center"> 15  </td>
+<td align="left"> Java SE 7からinvokedynamicの対応</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_MethodType_info           </td>
+<td align="center"> 16  </td>
+<td align="left"> Java SE 7からinvokedynamicの対応</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_InvokeDynamic_info        </td>
+<td align="center"> 17  </td>
+<td align="left"> Java SE 7からinvokedynamicの対応   </td>
+</tr>
+</tbody>
+</table>
+
+
+<p> 各cp_infoの詳細は後ほど使われる際に説明します。</p></li>
+<li><p>u2 access_flags: ビットマスクによるアクセスフラグです。</p>
+
+<table>
+<thead>
+<tr>
+<th align="left">  フラグ         </th>
+<th align="left"> 値     </th>
+<th align="left">  キーワード</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left">  ACC_PUBLIC     </td>
+<td align="left"> 0x0001 </td>
+<td align="left"> public</td>
+</tr>
+<tr>
+<td align="left">  ACC_FINAL      </td>
+<td align="left"> 0x0010 </td>
+<td align="left"> final</td>
+</tr>
+<tr>
+<td align="left">  ACC_SUPER      </td>
+<td align="left"> 0x0020 </td>
+<td align="left"> super</td>
+</tr>
+<tr>
+<td align="left">  ACC_INTERFACE  </td>
+<td align="left"> 0x0200 </td>
+<td align="left"> interface</td>
+</tr>
+<tr>
+<td align="left">  ACC_ABSTRACT   </td>
+<td align="left"> 0x0400 </td>
+<td align="left"> abstract</td>
+</tr>
+<tr>
+<td align="left">  ACC_SYNTHETIC  </td>
+<td align="left"> 0x1000 </td>
+<td align="left"> synthetic</td>
+</tr>
+<tr>
+<td align="left">  ACC_ANNOTATION </td>
+<td align="left"> 0x2000 </td>
+<td align="left"> annotation</td>
+</tr>
+<tr>
+<td align="left">  ACC_ENUM       </td>
+<td align="left"> 0x4000 </td>
+<td align="left"> enum</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li><p>u2 this_class: 定数プールにthisクラスの参照(CONSTANT_Class_info)</p></li>
+</ul>
+
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">CONSTANT_Class_info</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">u1</span> <span class="n">tag</span><span class="p">;</span>                    <span class="c1">// 7</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">name_index</span><span class="p">;</span>             <span class="c1">// 定数プールのインデックス</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>u2 super_class: 親クラスの参照(CONSTANT_Class_info)</li>
+<li>u2 interface_counts: 実現したインタフェース数</li>
+<li>u2 interface[interface_counts]: インタフェース参照(CONSTANT_Class_info)</li>
+<li>u2 fields_count:クラス変数とインスタンス変数の個数</li>
+<li>field_info fields[fields_count]:フィールド参照(field_info)</li>
+</ul>
+
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">field_info</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">access_flags</span><span class="p">;</span>                 <span class="c1">// 変数のアクセスフラグ</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">name_index</span><span class="p">;</span>                   <span class="c1">// 変数名の定数プールのインデックス(CONSTANT_Utf8_info)</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">descriptor_index</span><span class="p">;</span>             <span class="c1">// 変数タイプの定数プールのインデックス(CONSTANT_Utf8_info)</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">attributes_count</span><span class="p">;</span>             <span class="c1">// 属性数</span>
+</span><span class='line'>    <span class="n">attribute_info</span> <span class="n">attributes</span><span class="p">[</span><span class="n">attributes_count</span><span class="p">];</span> <span class="c1">// 属性参照(annotationなど)</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>アクセスフラグは<a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5">ここ</a>を参照できます。</p>
+
+<ul>
+<li>u2 methods_count: メソッド数</li>
+<li>method_info methods[methods_count]: メソッド参照(method_info)</li>
+</ul>
+
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">method_info</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">access_flags</span><span class="p">;</span>                  <span class="c1">// メソッドのアクセスフラグ</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">name_index</span><span class="p">;</span>                    <span class="c1">// メソッド名の定数プールのインデックス</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">descriptor_index</span><span class="p">;</span>              <span class="c1">// メソッド定義文字列の定数プールのインデックス</span>
+</span><span class='line'>    <span class="n">u2</span>             <span class="n">attributes_count</span><span class="p">;</span>              <span class="c1">// 属性数</span>
+</span><span class='line'>    <span class="n">attribute_info</span> <span class="n">attributes</span><span class="p">[</span><span class="n">attributes_count</span><span class="p">];</span>  <span class="c1">// 属性参照（annotation, excpetionなど)</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>アクセスフラグは<a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6">ここ</a>を参照できます。</p>
+
+<ul>
+<li>u2 attributes_count: 任意の属性数</li>
+<li><p>attribute_info attributes[attributes_count]: 任意の属性参照</p>
+
+<p>attribute_infoはクラスファイルの最後に置かれます。例外、ソース行番号、デバッグ情報、annotationなどの標準属性以外、ユーザ定義の属性もあります。</p>
+
+<p>そして属性の長さは固定ではありません。属性にネスト属性を含むことも可能です。</p></li>
+</ul>
+
+
+<h2>サンプル</h2>
+
+<p>話はやや複雑になりますが、簡単な例をあげます。
+以下の簡単なクラスを作成します。シンプルなクラスなので、annotation, 例外処理などがありません。</p>
+
+<figure class='code'><figcaption><span>簡単なクラス - Sample.java </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kn">package</span> <span class="n">net</span><span class="o">.</span><span class="na">codemelon</span><span class="o">.</span><span class="na">brisk</span><span class="o">.</span><span class="na">demo</span><span class="o">.</span><span class="na">jvm</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="cm">/**</span>
+</span><span class='line'><span class="cm"> * Sample class for interpret JVM class file structure.</span>
+</span><span class='line'><span class="cm"> *</span>
+</span><span class='line'><span class="cm"> * @author : Haidong Wang</span>
+</span><span class='line'><span class="cm"> */</span>
+</span><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">Sample</span> <span class="o">{</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">private</span> <span class="n">String</span> <span class="n">name</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">public</span> <span class="kd">static</span> <span class="kd">final</span> <span class="n">String</span> <span class="n">AOP_CLASS_SUFFIX</span> <span class="o">=</span> <span class="s">&quot;$$_brisk_aop_enhanced&quot;</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">protected</span> <span class="kt">int</span> <span class="n">age</span> <span class="o">=</span> <span class="mi">30</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">init</span><span class="o">(</span><span class="n">String</span> <span class="n">name</span><span class="o">,</span> <span class="kt">int</span> <span class="n">age</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">this</span><span class="o">.</span><span class="na">name</span> <span class="o">=</span> <span class="n">name</span><span class="o">;</span>
+</span><span class='line'>        <span class="k">this</span><span class="o">.</span><span class="na">age</span> <span class="o">=</span> <span class="n">age</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">public</span> <span class="n">String</span> <span class="nf">getName</span><span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="k">this</span><span class="o">.</span><span class="na">name</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">public</span> <span class="kd">static</span> <span class="n">String</span> <span class="nf">getAopClassSuffix</span><span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">Sample</span><span class="o">.</span><span class="na">AOP_CLASS_SUFFIX</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>jdk_1.7.0_40でコンパイルしたクラスは以下のようです。</p>
+
+<p><img src="http://sjitech.github.io/images/brisk/sample_class_hex.png" title="[Sample.class]" ></p>
+
+<p><a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6">Java仮想マシン仕様</a>を参照しながら、上記のバイトコードを解読してみましょう。</p>
+
+<ul>
+<li>マジック・ナンバー<br />
+クラスファイルの先頭4バイトは、Javaのクラスファイルであることを示すマジックナンバーで、0xCAFEBABE固定です。</li>
+</ul>
+
+
+<p>0000: <code>CA FE BA BE</code> 00 00 00 33 00 21 0A 00 06 00 1B 09 &hellip;&hellip;.3.!&hellip;&hellip;</p>
+
+<ul>
+<li>バージョン番号<br />
+次の4バイトは、クラスファイルが実行対象とするJavaバージョンを識別するバージョン番号です。前半2バイトがマイナー・バージョンで後半2バイトがメジャーバージョンとなります。<br />
+以下は、マイナーバージョンが0（0x0000）、メジャーバージョンが51（0x0033）を表します。上のテーブルによって、Java SE 7のバージョン番号は51ですね。</li>
+</ul>
+
+
+<p>0000: CA FE BA BE <code>00 00 00 33</code> 00 21 0A 00 06 00 1B 09 &hellip;&hellip;.3.!&hellip;&hellip;</p>
+
+<ul>
+<li>定数プール数<br />
+リテラル、実行時に解決するメソッド、フィールド参照、などの各種定数を持つ定数プールの個数です。定数プールは1から数えますので、Sampleクラスは32(0x21 &ndash; 1)個の定数があります。</li>
+</ul>
+
+
+<p>0000: CA FE BA BE 00 00 00 33 <code>00 21</code> 0A 00 06 00 1B 09 &hellip;&hellip;.3.!&hellip;&hellip;</p>
+
+<ul>
+<li>定数プールの情報配列<br />
+定数プールのフォーマットは種類により異なります。種類は先頭1バイトのタグで決まります。<br />
+定数プールの詳細をみってみましょう。まず1番目の定数をみます。</li>
+</ul>
+
+
+<p>0000: CA FE BA BE 00 00 00 33 00 21 <code>0A</code> 00 06 00 1B 09 &hellip;&hellip;.3.!&hellip;&hellip;</p>
+
+<p>0x0aは10ですので、上のテーブルによってConstant_Methodref_infoの定数です。Constant_Methodref_infoの構造は以下のようです。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">CONSTANT_Methodref_info</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">u1</span> <span class="n">tag</span><span class="p">;</span>                 <span class="c1">// 10</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">class_index</span><span class="p">;</span>         <span class="c1">// メソッド所属クラスのインデックス</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">name_and_type_index</span><span class="p">;</span> <span class="c1">// メソッド定義の定数のインデックス</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>class_indexは0x06です。定数プールの6番目のCONSTANT_Class_info定数を指します。</p>
+
+<p>0000: CA FE BA BE 00 00 00 33 00 21 0A <code>00 06</code> 00 1B 09 &hellip;&hellip;.3.!&hellip;&hellip;</p>
+
+<p>name_and_type_indexは0x1bです。定数プールの27番目のCONSTANT_NameAndType_info定数を参照します。<br /></p>
+
+<p>0000: CA FE BA BE 00 00 00 33 00 21 0A 00 06 <code>00 1B</code> 09 &hellip;&hellip;.3.!&hellip;&hellip;</p>
+
+<p>定数プールの27番のデータは以下のようです。</p>
+
+<p>0140: 6C 65 2E 6A 61 76 61 <code>0C 00 0D 00 0E</code> 0C 00 0B 00 le.java&hellip;&hellip;&hellip;</p>
+
+<p>CONSTANT_NameAndType_infoの構造は以下のようです。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">CONSTANT_NameAndType_info</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">u1</span> <span class="n">tag</span><span class="p">;</span>                    <span class="c1">// 12</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">name_index</span><span class="p">;</span>             <span class="c1">// メソッド名または変数名の定数プールのインデックス</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">descriptor_index</span><span class="p">;</span>       <span class="c1">// メソッドまたは変数のメソッドの引数の型と個数，及び戻り値の型（voidを含む）</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>上記の方法を従って、すべての定数を解読できます。バイナリは読みづらいですが、JDKに便利なのツールを提供しています。<br />
+javap -version Sample.classでバイナリデータをJVMのアセンブリコードに変換します。定数プールの内容もリストアプされます。</p>
+
+<figure class='code'><figcaption><span>[Sampleクラスの定数プール] </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">net</span><span class="o">.</span><span class="na">codemelon</span><span class="o">.</span><span class="na">brisk</span><span class="o">.</span><span class="na">demo</span><span class="o">.</span><span class="na">jvm</span><span class="o">.</span><span class="na">Sample</span>
+</span><span class='line'>  <span class="nl">SourceFile:</span> <span class="s">&quot;Sample.java&quot;</span>
+</span><span class='line'>  <span class="n">minor</span> <span class="nl">version:</span> <span class="mi">0</span>
+</span><span class='line'>  <span class="n">major</span> <span class="nl">version:</span> <span class="mi">51</span>
+</span><span class='line'>  <span class="nl">flags:</span> <span class="n">ACC_PUBLIC</span><span class="o">,</span> <span class="n">ACC_SUPER</span>
+</span><span class='line'><span class="n">Constant</span> <span class="nl">pool:</span>
+</span><span class='line'>   <span class="err">#</span><span class="mi">1</span> <span class="o">=</span> <span class="n">Methodref</span>          <span class="err">#</span><span class="mi">6</span><span class="o">.</span><span class="err">#</span><span class="mi">27</span>         <span class="c1">//  java/lang/Object.&quot;&lt;init&gt;&quot;:()V</span>
+</span><span class='line'>   <span class="err">#</span><span class="mi">2</span> <span class="o">=</span> <span class="n">Fieldref</span>           <span class="err">#</span><span class="mi">5</span><span class="o">.</span><span class="err">#</span><span class="mi">28</span>         <span class="c1">//  net/codemelon/brisk/demo/jvm/Sample.age:I</span>
+</span><span class='line'>   <span class="err">#</span><span class="mi">3</span> <span class="o">=</span> <span class="n">Fieldref</span>           <span class="err">#</span><span class="mi">5</span><span class="o">.</span><span class="err">#</span><span class="mi">29</span>         <span class="c1">//  net/codemelon/brisk/demo/jvm/Sample.name:Ljava/lang/String;</span>
+</span><span class='line'>   <span class="err">#</span><span class="mi">4</span> <span class="o">=</span> <span class="n">String</span>             <span class="err">#</span><span class="mi">30</span>            <span class="c1">//  $$_brisk_aop_enhanced</span>
+</span><span class='line'>   <span class="err">#</span><span class="mi">5</span> <span class="o">=</span> <span class="n">Class</span>              <span class="err">#</span><span class="mi">31</span>            <span class="c1">//  net/codemelon/brisk/demo/jvm/Sample</span>
+</span><span class='line'>   <span class="err">#</span><span class="mi">6</span> <span class="o">=</span> <span class="n">Class</span>              <span class="err">#</span><span class="mi">32</span>            <span class="c1">//  java/lang/Object</span>
+</span><span class='line'>   <span class="err">#</span><span class="mi">7</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">name</span>
+</span><span class='line'>   <span class="err">#</span><span class="mi">8</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">Ljava</span><span class="o">/</span><span class="n">lang</span><span class="o">/</span><span class="n">String</span><span class="o">;</span>
+</span><span class='line'>   <span class="err">#</span><span class="mi">9</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">AOP_CLASS_SUFFIX</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">10</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">ConstantValue</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">11</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">age</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">12</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">I</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">13</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="o">&lt;</span><span class="n">init</span><span class="o">&gt;</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">14</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="o">()</span><span class="n">V</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">15</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">Code</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">16</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">LineNumberTable</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">17</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">LocalVariableTable</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">18</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="k">this</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">19</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">Lnet</span><span class="o">/</span><span class="n">codemelon</span><span class="o">/</span><span class="n">brisk</span><span class="o">/</span><span class="n">demo</span><span class="o">/</span><span class="n">jvm</span><span class="o">/</span><span class="n">Sample</span><span class="o">;</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">20</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">init</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">21</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="o">(</span><span class="n">Ljava</span><span class="o">/</span><span class="n">lang</span><span class="o">/</span><span class="n">String</span><span class="o">;</span><span class="n">I</span><span class="o">)</span><span class="n">V</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">22</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">getName</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">23</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="o">()</span><span class="n">Ljava</span><span class="o">/</span><span class="n">lang</span><span class="o">/</span><span class="n">String</span><span class="o">;</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">24</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">getAopClassSuffix</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">25</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">SourceFile</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">26</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">Sample</span><span class="o">.</span><span class="na">java</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">27</span> <span class="o">=</span> <span class="n">NameAndType</span>        <span class="err">#</span><span class="mi">13</span><span class="o">:</span><span class="err">#</span><span class="mi">14</span>        <span class="c1">//  &quot;&lt;init&gt;&quot;:()V</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">28</span> <span class="o">=</span> <span class="n">NameAndType</span>        <span class="err">#</span><span class="mi">11</span><span class="o">:</span><span class="err">#</span><span class="mi">12</span>        <span class="c1">//  age:I</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">29</span> <span class="o">=</span> <span class="n">NameAndType</span>        <span class="err">#</span><span class="mi">7</span><span class="o">:</span><span class="err">#</span><span class="mi">8</span>          <span class="c1">//  name:Ljava/lang/String;</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">30</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">$$_brisk_aop_enhanced</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">31</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">net</span><span class="o">/</span><span class="n">codemelon</span><span class="o">/</span><span class="n">brisk</span><span class="o">/</span><span class="n">demo</span><span class="o">/</span><span class="n">jvm</span><span class="o">/</span><span class="n">Sample</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">32</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">java</span><span class="o">/</span><span class="n">lang</span><span class="o">/</span><span class="n">Object</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>定数プールに32個定数があることをわかりますね。#1から数えますが、#0はクラスが定数プールを参照しないことを示します。
+ですから、constant_pool_countの値は33(0x21)です。</p>
+
+<p>上の1番目の定数のclass_indexは#6ですが、java.lang.Objectのメソッドをわかります。</p>
+
+<p class="info">
+完全修飾されたJavaのクラス名は、「java.lang.Object」のように慣例的にドットで区分けされますが、Java仮想マシン内部形式は「java/lang/Object」のように、代わりにスラッシュを使用します。
+</p>
+
+
+<p>name_and_type_indexは#27のCONSTANT_NameAndType_info(上記のコードによると&lt;init&gt;メソッド)です。コンパイルの時に自動生成したデフォールトコンストラクターですね。<br />
+メソッドの引数と戻り値は()Vを指します。Java仮想マシン内部でデータタイプの表示を以下の表にまとめました。</p>
+
+<table>
+<thead>
+<tr>
+<th align="left">BaseType Character </th>
+<th align="left"> Type      </th>
+<th align="left"> Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left">B                  </td>
+<td align="left"> byte      </td>
+<td align="left"> signed byte</td>
+</tr>
+<tr>
+<td align="left">C                  </td>
+<td align="left"> char      </td>
+<td align="left"> Unicode character</td>
+</tr>
+<tr>
+<td align="left">D                  </td>
+<td align="left"> double    </td>
+<td align="left"> double-precision floating-point value</td>
+</tr>
+<tr>
+<td align="left">F                  </td>
+<td align="left"> float     </td>
+<td align="left"> single-precision floating-point value</td>
+</tr>
+<tr>
+<td align="left">I                  </td>
+<td align="left"> int       </td>
+<td align="left"> integer</td>
+</tr>
+<tr>
+<td align="left">J                  </td>
+<td align="left"> long      </td>
+<td align="left"> long integer</td>
+</tr>
+<tr>
+<td align="left">LClassname;        </td>
+<td align="left"> reference </td>
+<td align="left"> an instance of class Classname</td>
+</tr>
+<tr>
+<td align="left">S                  </td>
+<td align="left"> short     </td>
+<td align="left"> signed short</td>
+</tr>
+<tr>
+<td align="left">Z                  </td>
+<td align="left"> boolean   </td>
+<td align="left"> true or flase</td>
+</tr>
+<tr>
+<td align="left">[                  </td>
+<td align="left"> reference </td>
+<td align="left"> one array dimension(一次元配列)</td>
+</tr>
+<tr>
+<td align="left">V                  </td>
+<td align="left"> void      </td>
+<td align="left"> return void</td>
+</tr>
+</tbody>
+</table>
+
+
+<p>上の表によって、()Vは引数無し、戻り値無しの意味です。<br />
+複雑な例をあげます。二次元配列String[][]は[[Ljava/lang/Stringを表します。int[][]なら[[Iを表します。</p>
+
+<ul>
+<li>アクセスフラグ<br />
+クラス宣言またはインタフェース宣言で使用する修飾子のビットマスクを表します。</li>
+</ul>
+
+
+<p>01A0: 2F 4F 62 6A 65 63 74 <code>00 21</code> 00 05 00 06 00 00 00 /Object.!&hellip;&hellip;.</p>
+
+<p>Sampleクラスのアクセスフラグは0x0021 = 0x0001|0x0020（すなわち、ACC_PUBLIC|ACC_SUPER）です。<br />
+ACC_PUBLICはpublicですが、ACC_SUPERはJDK 1.2以降強制的に追加された修飾子です。</p>
+
+<ul>
+<li>this_class<br />
+Sampleクラス情報のインデックスです。</li>
+</ul>
+
+
+<p>01A0: 2F 4F 62 6A 65 63 74 00 21 <code>00 05</code> 00 06 00 00 00 /Object.!&hellip;&hellip;.</p>
+
+<p>定数プールの#5はCONSTANT_Class_info定数です。クラス名name_indexは#31のCONSTANT_Utf8_info定数を参照します。<br />
+それによって、クラスの名がnet/codemelon/brisk/demo/jvm/Sampleであることはわかります。</p>
+
+<ul>
+<li>親クラス<br /></li>
+</ul>
+
+
+<p>01A0: 2F 4F 62 6A 65 63 74 00 21 00 05 <code>00 06</code> 00 00 00 /Object.!&hellip;&hellip;.</p>
+
+<p>定数#6はjava/lang/Objectです。宣言していない場合、暗黙でjava.lang.Objectを継承しますね。</p>
+
+<ul>
+<li>インタフェース<br />
+インタフェース数とインタフェース情報配列はクラスを実現したインタフェース情報です。Sampleクラスはinterfaceがありませんので、interfaces_countは0x00です。</li>
+</ul>
+
+
+<p>01A0: 2F 4F 62 6A 65 63 74 00 21 00 05 00 06 <code>00 00</code> 00 /Object.!&hellip;&hellip;.</p>
+
+<ul>
+<li>インスタンス変数とクラス変数<br />
+Sampleクラスは2つのインスタンス変数と1つのクラス変数（合わせて3つ）があります。親クラスの変数を含まないことを注意してください。<br />
+変数の構造は上のfield_infoです。</li>
+</ul>
+
+
+<p>01A0: 2F 4F 62 6A 65 63 74 00 21 00 05 00 06 00 00 <code>00</code> /Object.!&hellip;&hellip;.<br />
+01B0: <code>03</code> 00 02 00 07 00 08 00 00 00 19 00 09 00 08 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>以下は変数nameの内容を示します。</p>
+
+<p><img src="http://sjitech.github.io/images/brisk/name_field_info.png" title="[private String name]" ></p>
+
+<p>もっと複雑な例としてクラス変数AOP_CLASS_SUFFIXを解析しましょう。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'>    <span class="kd">public</span> <span class="kd">static</span> <span class="kd">final</span> <span class="n">String</span> <span class="n">AOP_CLASS_SUFFIX</span> <span class="o">=</span> <span class="s">&quot;$$_brisk_aop_enhanced&quot;</span><span class="o">;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>AOP_CLASS_SUFFIXのaccess_flagsはACC_PUBLIC | ACC_STATIC | ACC_FINAL (0x0001 | 0x0008 | 0x0010) = 0x19です。</p>
+
+<p>01B0: 03 00 02 00 07 00 08 00 00 <code>00 19</code> 00 09 00 08 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>name_indexは0x09です。上の定数一覧によって、#9 = Utf8 AOP_CLASS_SUFFIXです。</p>
+
+<p>01B0: 03 00 02 00 07 00 08 00 00 00 19 <code>00 09</code> 00 08 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>descriptor_indexは0x08ですが、上の定数一覧によって、#8 = Utf8 Ljava/lang/String;(java.lang.Stringインスタンス)です。</p>
+
+<p>01B0: 03 00 02 00 07 00 08 00 00 00 19 00 09 <code>00 08</code> 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>次のattributes_countは0x0001です。1つの属性はあります。</p>
+
+<p>01B0: 03 00 02 00 07 00 08 00 00 00 19 00 09 00 08 <code>00</code> &hellip;&hellip;&hellip;&hellip;&hellip;.<br />
+01C0: <code>01</code> 00 0A 00 00 00 02 00 04 00 04 00 0B 00 0C 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>次の2バイトは0x000aです。上の定数プールの#10によると&#8221;ConstantValue&#8221;の属性です。<br />
+<a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2">ConstantValue</a>の構造は以下のようです。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">ConstantValue_attribute</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">attribute_name_index</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u4</span> <span class="n">attribute_length</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">constantvalue_index</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>attribute_name_indexはConstantValueの定数プールのインデックです。attribute_lengthは固定で2です。</p>
+
+<p>01C0: 01 00 0A <code>00 00 00 02</code> 00 04 00 04 00 0B 00 0C 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>constantvalue_indexは0x04です。定数プールによると、#4 = String #30 //  $$_brisk_aop_enhancedです。AOP_CLASS_SUFFIXの初期値ですね。</p>
+
+<p>01C0: 01 00 0A 00 00 00 02 <code>00 04</code> 00 04 00 0B 00 0C 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>他の変数は同じな方法で解析できます。</p>
+
+<ul>
+<li>メソッド<br />
+コンパイラで自動生成したコンストラクターを含めて、methods_countは0x04です。</li>
+</ul>
+
+
+<p>01D0: 00 <code>00 04</code> 00 01 00 0D 00 0E 00 01 00 0F 00 00 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>一番目のmethod_infoの内容を見てみましょう。method_infoの構造を上に参照できます。<br />
+access_flagsは0x01です。</p>
+
+<p>01D0: 00 00 04 <code>00 01</code> 00 0D 00 0E 00 01 00 0F 00 00 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p><a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6">メソッドのアクセスフラグ一覧</a>によると、ACC_PUBLICは0x0001です。</p>
+
+<p>01D0: 00 00 04 00 01 <code>00 0D</code> 00 0E 00 01 00 0F 00 00 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>name_indexは0x0dです。上の定数プールによると、#13 = Utf8 &lt;init&gt;です。自動生成したデフォルト・コンストラクターです。</p>
+
+<p>01D0: 00 00 04 00 01 00 0D <code>00 0E</code> 00 01 00 0F 00 00 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>descriptor_indexは0x0eなので、定数プールの#14 = Utf8  ()Vです。デフォルト・コンストラクターはパラメータ無し、戻り値voidです。<br />
+次のattributes_countは0x01です。</p>
+
+<p>01D0: 00 00 04 00 01 00 0D 00 0E <code>00 01</code> 00 0F 00 00 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>次の2バイトはattribute_name_indexです。定数プールの0x0fは#15 = Utf8 Codeです。<br />
+それによって、属性タイプは<a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.3">Code_attribute</a>です。</p>
+
+<p>01D0: 00 00 04 00 01 00 0D 00 0E 00 01 <code>00 0F</code> 00 00 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>Code_attributeの構造は以下のようです。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">Code_attribute</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">attribute_name_index</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u4</span> <span class="n">attribute_length</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">max_stack</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">max_locals</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u4</span> <span class="n">code_length</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u1</span> <span class="n">code</span><span class="p">[</span><span class="n">code_length</span><span class="p">];</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">exception_table_length</span><span class="p">;</span>
+</span><span class='line'>    <span class="p">{</span>   <span class="n">u2</span> <span class="n">start_pc</span><span class="p">;</span>
+</span><span class='line'>        <span class="n">u2</span> <span class="n">end_pc</span><span class="p">;</span>
+</span><span class='line'>        <span class="n">u2</span> <span class="n">handler_pc</span><span class="p">;</span>
+</span><span class='line'>        <span class="n">u2</span> <span class="n">catch_type</span><span class="p">;</span>
+</span><span class='line'>    <span class="p">}</span> <span class="n">exception_table</span><span class="p">[</span><span class="n">exception_table_length</span><span class="p">];</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">attributes_count</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">attribute_info</span> <span class="n">attributes</span><span class="p">[</span><span class="n">attributes_count</span><span class="p">];</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>かなり複雑な構造ですね。メソッドに仮想マシンの命令を表す構造体です。<br /></p>
+
+<p>01D0: 00 00 04 00 01 00 0D 00 0E 00 01 00 0F <code>00 00 00</code> &hellip;&hellip;&hellip;&hellip;&hellip;.<br />
+01E0: <code>39</code> 00 02 00 01 00 00 00 0B 2A B7 00 01 2A 10 1E 9&hellip;&hellip;..<em>&hellip;</em>..</p>
+
+<p>attribute_lengthはCode_attributeにattribute_name_indexとattribute_lengthを除いたバイト数です。<br />
+上のバイトデータによると、&lt;init&gt;のCode_attributeの長さは0x39バイトです。</p>
+
+<p>01E0: 39 <code>00 02 00 01</code> 00 00 00 0B 2A B7 00 01 2A 10 1E 9&hellip;&hellip;..<em>&hellip;</em>..</p>
+
+<p>次のmax_stackは0x02です。max_localsは0x01です。JVMでメソッドをframeに実行されます。<br />
+frameにローカル変数用の配列と操作命令スタックはあります。変数配列はメソッドパラメータ、ローカル変数（中間結果）を保存します。<br />
+操作スタックは仮想マシンの命令と操作数（変数配列からロードされる）を順番でロードして実行します。結果を変数配列仁保存し、命令と操作数をクリアし、次の命令を処理します。<br />
+メソッドのすべてのコードを実行する時、変数配列の最大長さはmax_localsと呼ばれます。操作スタックの最大長さはmax_stackと呼ばれます。<br />
+doubleとlongのデータは64ビットなので、max_stackとmax_localsを計算するときに注意しなければなりません。<br />
+詳しいJVMのランタイム仕組みは次回に解説させて頂きます。</p>
+
+<p>01E0: 39 00 02 00 01 <code>00 00 00 0B</code> 2A B7 00 01 2A 10 1E 9&hellip;&hellip;..<em>&hellip;</em>..</p>
+
+<p>code_lengthは0x0bです。メソッドコードはcode[11]に置かれます。Code_attributeの構成によって、codeタイプはu1です。<br />
+u1の範囲は0x00 ~ 0xff(0 ~ 255)です。現在約200個のJVM命令を定義しています。<br />
+exception_table_lengthとexception_tableは例外情報です。&lt;init&gt;は例外宣言がありませんので、exception_table_lengthは0です。</p>
+
+<p>01F0: B5 00 02 B1 <code>00 00</code> 00 02 00 10 00 00 00 0A 00 02 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>次のattributes_countは0x02です。</p>
+
+<p>01F0: B5 00 02 B1 00 00 <code>00 02</code> 00 10 00 00 00 0A 00 02 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>1つ目の属性のインデックは0x10です。定数プールの#16はUtf8 LineNumberTableです。</p>
+
+<p>01F0: B5 00 02 B1 00 00 00 02 <code>00 10</code> 00 00 00 0A 00 02 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p><a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.12">LineNumberTable</a>の構造は以下のようです。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">LineNumberTable_attribute</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">attribute_name_index</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u4</span> <span class="n">attribute_length</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">line_number_table_length</span><span class="p">;</span>
+</span><span class='line'>    <span class="p">{</span>   <span class="n">u2</span> <span class="n">start_pc</span><span class="p">;</span>
+</span><span class='line'>        <span class="n">u2</span> <span class="n">line_number</span><span class="p">;</span>
+</span><span class='line'>    <span class="p">}</span> <span class="n">line_number_table</span><span class="p">[</span><span class="n">line_number_table_length</span><span class="p">];</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>attribute_lengthはattribute_name_indexとattribute_length以外のバイト数です。<br />
+バイトデータによって、attribute_lengthは10(0x0a)です。</p>
+
+<p>01F0: B5 00 02 B1 00 00 00 02 00 10 <code>00 00 00 0A</code> 00 02 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>line_number_table_lengthは0x02です。</p>
+
+<p>01F0: B5 00 02 B1 00 00 00 02 00 10 00 00 00 0A *00 02` &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>line_number_tableは次の8バイトとです。start_pcはJVM命令の番号です。line_numberはソースの行番号です。</p>
+
+<p>0200: <code>00 00 00 08 00 04 00 0E</code> 00 11 00 00 00 0C 00 01 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>次の属性は定数プールの#17(0x11) = Utf8 LocalVariableTableです。</p>
+
+<p>0200: 00 00 00 08 00 04 00 0E <code>00 11</code> 00 00 00 0C 00 01 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>LocalVariableTableの構造は以下のようです。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">LocalVariableTable_attribute</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">attribute_name_index</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u4</span> <span class="n">attribute_length</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">local_variable_table_length</span><span class="p">;</span>
+</span><span class='line'>    <span class="p">{</span>   <span class="n">u2</span> <span class="n">start_pc</span><span class="p">;</span>
+</span><span class='line'>        <span class="n">u2</span> <span class="n">length</span><span class="p">;</span>
+</span><span class='line'>        <span class="n">u2</span> <span class="n">name_index</span><span class="p">;</span>
+</span><span class='line'>        <span class="n">u2</span> <span class="n">descriptor_index</span><span class="p">;</span>
+</span><span class='line'>        <span class="n">u2</span> <span class="n">index</span><span class="p">;</span>
+</span><span class='line'>    <span class="p">}</span> <span class="n">local_variable_table</span><span class="p">[</span><span class="n">local_variable_table_length</span><span class="p">];</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>attribute_lengthは0x0cです。local_variable_table_lengthは0x01です。local_variable_tableに1つの変数があることはわかります。</p>
+
+<p>0200: 00 00 00 08 00 04 00 0E 00 11 <code>00 00 00 0C 00 01</code> &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>次の10バイトはlocal_variable_table[1]の変数です。</p>
+
+<p>0210: <code>00 00 00 0B 00 12 00 13 00 00</code> 00 01 00 14 00 15 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>定数プールとlocal_variable_tableの構造によって、上記のデータの意味は以下のようです。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'>    <span class="p">{</span>
+</span><span class='line'>        <span class="n">u2</span> <span class="n">start_pc</span><span class="p">;</span>            <span class="c1">// 0x0000</span>
+</span><span class='line'>        <span class="n">u2</span> <span class="n">length</span><span class="p">;</span>              <span class="c1">// 0x000b</span>
+</span><span class='line'>        <span class="n">u2</span> <span class="n">name_index</span><span class="p">;</span>          <span class="c1">// 0x0012    #18 = Utf8               this</span>
+</span><span class='line'>        <span class="n">u2</span> <span class="n">descriptor_index</span><span class="p">;</span>    <span class="c1">// 0x0013    #19 = Utf8               Lnet/codemelon/brisk/demo/jvm/Sample;</span>
+</span><span class='line'>        <span class="n">u2</span> <span class="n">index</span><span class="p">;</span>               <span class="c1">// 0x0000</span>
+</span><span class='line'>    <span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>start_pc + lengthはメソッド実行の開始JVMコマンドの位置を表します。name_indexとdescriptor_indexはSampleインスタンスthisのことが分かります。<br />
+indexはthis変数がローカル変数配列の最初（インデックス0）位置に置かれることを示します。JVMではすべてのメソッド実行frameの変数配列の0にthis変数を置かれます。</p>
+
+<p>同様のように他のメソッドを解析できます。次のバイトをみってみましょう。</p>
+
+<p>0210: 00 00 00 0B 00 12 00 13 00 00 <code>00 01 00 14 00 15</code> &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>0x0001はACC_PUBLICです。0x0014は定数プールの#20 = Utf8 initです。0x0015は定数プールの#21 = Utf8 (Ljava/lang/String;I)Vです。<br />
+public void init(String name, int age)メソッドであることがわかりますね。</p>
+
+<p>最後はattributes_countとattribute_info attributes[attributes_count]を見ます。</p>
+
+<p>02D0: 00 00 01 00 10 00 00 00 06 00 01 00 00 00 1A <code>00</code> &hellip;&hellip;&hellip;&hellip;&hellip;.<br />
+02E0: <code>01 00 19 00 00 00 02 00 1A</code>                      &hellip;&hellip;&hellip;</p>
+
+<p>attributes_countは0x0001です。属性タイプは定数プールの#25(0x0019) = Utf8 SourceFileです。
+SourceFile属性の構造は以下のようです。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">SourceFile_attribute</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">attribute_name_index</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u4</span> <span class="n">attribute_length</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">sourcefile_index</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>attribute_lengthは固定で2です。sourcefile_indexは定数プールの#26(0x001a) Utf8 Sample.javaです。
+ソースファイルの名前はSample.javaであることはわかります。</p>
+
+<h2>まとめ</h2>
+
+<p>以上では簡単なクラスを例として、Javaクラスファイルのレイアウトを解析してみました。exception_table、annotationなどの構造を触れていません。</p>
+
+<p>詳しい内容は<a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html">Java仮想マシン仕様の第四章</a>を参照すれば良いと思います。</p>
+
+<p>次回はJVMランタイム仕組みを紹介していきたいです。JavaコードとJVMアセンブリコードを対照しながら、JVMの内部動作を考査してみます。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[How to write new post on octopress]]></title>
+    <link href="http://sjitech.github.io/blog/2013/08/14/how-to-write-new-post-on-octopress/"/>
+    <updated>2013-08-14T14:14:00+09:00</updated>
+    <id>http://sjitech.github.io/blog/2013/08/14/how-to-write-new-post-on-octopress</id>
+    <content type="html"><![CDATA[<p>ここでOctopressで新規記事を投稿する方法を紹介する。<br />
+Octopressを知っていない方もいると思うが、始まる前に少しOctopressを紹介してから進めましょう。</p>
+
+<!-- more -->
+
+
+<h2>Octopressとは？</h2>
+
+<p><a href="http://octopress.org/">Octopress</a>は最近人気上昇のブログエンジンである。特にhackerたちに流行している。膨大なWordPressに対して不満をもって、より簡単、hackerらしいブログツールを望んでいる中でOctopressを生み出した。<br />
+Octopressはrubyとgitを利用して、<a href="http://ja.wikipedia.org/wiki/Markdown">Markdown</a>記法のtextをhtmlページに変換する。<a href="https://github.com/">Github</a>のpage serviceを利用して、簡単にブログを公開できる。Githubを利用しなくてもrsync、<a href="https://www.heroku.com/">Heroku</a>のpage serivceでもブログを構築できる。<br />
+ここでGithubのpage serviceを利用する前提で本ブログに投稿の作業を解説する。</p>
+
+<h2>環境設定</h2>
+
+<p>Windows環境はruby gemの相性がよくないので、Mac OSXまたはLinux環境を推奨する。<br />
+ruby環境は<a href="https://rvm.io/">RVM</a>と<a href="http://rbenv.org/">rbenv</a>があるが、ここでMac OSXのrbenvを例として解説する。</p>
+
+<h4>Octopressの環境構築</h4>
+
+<p>まず、Octopressの<a href="http://octopress.org/docs/setup/">ドキュメント</a>を参考してください。<br />
+事前準備：</p>
+
+<ul>
+<li>Git</li>
+<li>Ruby 1.9.3以上(rbenvでインストール)</li>
+</ul>
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>rbenv install 1.9.3-p194
+</span><span class='line'><span class="nv">$ </span>rbenv versions <span class="c"># インストールされたrubyバージョンを確認</span>
+</span><span class='line'><span class="nv">$ </span>rbenv global 1.9.3-p194 <span class="c"># 1.9.3のバージョンを使用</span>
+</span><span class='line'><span class="nv">$ </span>rbenv version <span class="c"># 現在ruby versionを調べる</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>sjitechブログ取得</h4>
+
+<p>Githubからブログのソースを取得する。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>git clone https://github.com/sjitech/sjitech.github.com.git
+</span><span class='line'><span class="nv">$ </span><span class="nb">cd </span>sjitech.github.com
+</span><span class='line'><span class="nv">$ </span>git checkout <span class="nb">source</span> <span class="c"># ブランチを切り替え</span>
+</span><span class='line'><span class="nv">$ </span>ruby --version <span class="c"># 現在ruby versionを調べる</span>
+</span><span class='line'><span class="nv">$ </span>gem install bundler <span class="c"># 依存ライブラリをインストール</span>
+</span><span class='line'><span class="nv">$ </span>rbenv rehash
+</span><span class='line'><span class="nv">$ </span>bundle install
+</span><span class='line'><span class="nv">$ </span>rake setup_github_pages <span class="c"># デプロイ準備フォルダーの作成</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>新規記事</h2>
+
+<h4>新記事の追加</h4>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span><span class="nb">cd </span>sjitech.github.com
+</span><span class='line'><span class="nv">$ </span>rake new_post<span class="o">[</span><span class="s2">&quot;記事タイトル&quot;</span><span class="o">]</span> <span class="c"># Creates source/_posts/yyyy-MM-dd-記事タイトル.markdown</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>markdown編集</h4>
+
+<p>markdownは幾つかのオンラインエディタ(例：<a href="http://markable.in/">markable</a>)を利用できる。Macなら<a href="http://mouapp.com/">Mou</a>を強く推奨する。<br />
+markdown文法は<a href="http://daringfireball.net/projects/markdown/syntax.php">JOHN GRUBERのブログ</a>に参考ください。和訳は<a href="http://blog.2310.net/archives/6">ここ</a>にご参考ください。<br /></p>
+
+<h5>コードブロック</h5>
+
+<p>Octopressにコードブロックは以下のように挿入する。</p>
+
+<pre><code>``` ruby
+puts 'hello markdown!'
+```
+</code></pre>
+
+<p>上記のコードは以下のように表示される。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">puts</span> <span class="s1">&#39;hello markdown!&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>またはtagを使用する。</p>
+
+<pre><code>{% codeblock [title] [lang:language] [url] [link text] %}
+code snippet
+{% endcodeblock %}
+</code></pre>
+
+<p>例：</p>
+
+<pre><code>{% codeblock Time to be Awesome - awesome.rb %}
+puts "Awesome!" unless lame
+{% endcodeblock %}
+</code></pre>
+
+<p>以下のように表示する。</p>
+
+<figure class='code'><figcaption><span>Time to be Awesome - awesome.rb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='rb'><span class='line'><span class="nb">puts</span> <span class="s2">&quot;Awesome!&quot;</span> <span class="k">unless</span> <span class="n">lame</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h5>画像</h5>
+
+<p>tagを使う。</p>
+
+<pre><code>{% img [class names] /path/to/image [width] [height] [title text [alt text]] %}
+</code></pre>
+
+<p>例：</p>
+
+<pre><code>{% img http://www.sji-inc.jp/Portals/0/images/index/top-img02.jpg %}
+{% img left /images/sji_logo.png #2 %}
+{% img right /images/sji_outline.jpg Shinagawa Seaside East Tower #3 %}
+</code></pre>
+
+<p>中央寄せに表示する画像：<br />
+<img src="http://www.sji-inc.jp/Portals/0/images/index/top-img02.jpg"><br /></p>
+
+<br />
+
+
+<p><img class="left" src="http://sjitech.github.io/images/sji_logo.png" title="#2" >
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+<img class="right" src="http://sjitech.github.io/images/sji_outline.jpg" title="Shinagawa Seaside East Tower #3" ><br />
+右寄せに表示する画像<br />
+右寄せに表示する画像<br />
+右寄せに表示する画像<br />
+右寄せに表示する画像<br />
+右寄せに表示する画像<br /></p>
+
+<p>画像ファイルをsource/imagesフォルダーに置いてください。</p>
+
+<h5>改行</h5>
+
+<p>markdownにhtmlタグも使えるが、極力的に避けたほうがいいと思う。ただ、改行の時に&lt;br /&gt;を使っても良い。</p>
+
+<h4>途中の内容をプレビュー</h4>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>rake generate
+</span><span class='line'><span class="nv">$ </span>rake preview
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>とすれば、<a href="http://localhost:4000">http://localhost:4000</a>で確認できる。</p>
+
+<h2>投稿公開</h2>
+
+<p>記事を書き終えたら</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>rake gen_deploy
+</span><span class='line'><span class="nv">$ </span>rake deploy <span class="c"># sourceブランチをmasterブランチにマージし、githubにpushする</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>deploy途中にgithubアカウントとパスワードの入力を求める。</p>
+
+<p>最後にsourceブランチも一緒にgithubにpushしましょう。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>git add .
+</span><span class='line'><span class="nv">$ </span>git commit -m <span class="s2">&quot;add new post 記事タイトル&quot;</span>
+</span><span class='line'><span class="nv">$ </span>git push origin <span class="nb">source</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>では、さっそく記事を投稿しましょう。</p>
+
+<h2>参考リンク</h2>
+
+<ul>
+<li><a href="http://tokkonopapa.github.io/blog/2011/12/30/octopress-on-github-and-bitbucket/">Octopressのインストールから運用管理まで</a></li>
+<li><a href="http://kojika17.com/2013/01/starting-markdown.html">Markdown記法</a></li>
+<li><a href="http://blog.4uing.net/octopress-post/">Octopressで記事を投稿するまでの手順</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+</feed>

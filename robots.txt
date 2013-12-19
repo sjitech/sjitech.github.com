@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: 
+
+Sitemap: http://sjitech.github.io/sitemap.xml 

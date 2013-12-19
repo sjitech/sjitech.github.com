@@ -1,0 +1,1038 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="ja"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Chef soloとKnife soloで環境構築を自動化 - Technology of SJI</title>
+  <meta name="author" content="株式会社SJI先端技術研究センター">
+
+  
+  <meta name="description" content="最新のインフラツールChefで環境構築を自動化する方法を紹介">
+  <meta name="keywords" content="Chef, Ruby, DevOps, Infrastructrue, インフラ自動化">
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://sjitech.github.io/blog/2013/11/27/chef-solo-knife-solo-intro">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Technology of SJI" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/lib/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-43272596-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Technology of SJI</a></h1>
+  
+    <h2>株式会社SJIの技術ブログ</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.co.jp/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:sjitech.github.io" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/projects">Projects</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+  <li><a href="/about">About</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Chef soloとKnife Soloで環境構築を自動化</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-11-27T20:00:00+09:00" pubdate data-updated="true">2013年11月27日</time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p class="info">
+最近の人気なインフラ自動化ツールChef soloを利用して、開発環境の構築を自動化してみます。<br />
+</p>
+
+
+
+
+<!-- more -->
+
+
+<h2>参考サイト</h2>
+
+<p>最近Chef soloに関する記事はだいぶ増えています。本文は以下の記事を参考しました。</p>
+
+<ul>
+<li><p><a href="http://ch.nicovideo.jp/dwango-engineer/blomaga/ar322283">Chef Soloと Knife Soloでの ニコニコサーバー構築 (2) 〜導入編〜</a></p></li>
+<li><p><a href="http://knowledge.sakura.ad.jp/tech/867/">サーバー設定ツール「Chef」の概要と基礎的な使い方</a></p></li>
+<li><p><a href="http://tsuchikazu.net/chef_solo_start/">Chef Soloの正しい始め方</a></p></li>
+<li><p><a href="http://qiita.com/kidachi_/items/b222fb2892e6108c46d5">knife-soloによるChefの実行</a></p></li>
+<li><p><a href="http://www.atmarkit.co.jp/ait/articles/1305/24/news003.html">インフラストラクチャ自動化フレームワーク「Chef」の基本</a></p></li>
+</ul>
+
+
+<p>そのほか、伊藤直也さんのブログでchef-soloを紹介され、<a href="http://tatsu-zine.com/books/chef-solo">入門Chef Solo – Infrastructure as Code</a>が達人出版からも発売しています。</p>
+
+<p>上の記事を読んでから、Chefの<a href="http://docs.opscode.com/">公式ドキュメント</a>を読みやすくなると思います。結構の量がありますので、最初からドキュメントを読むとめちゃくちゃわかりにくいんです。</p>
+
+<h2>Chefとは？</h2>
+
+<p>Chefは<a href="http://www.opscode.com">Opscode社</a>によりRubyで開発されたインフラ自動化ツールです。ソースは<a href="https://github.com/opscode/chef">Github</a>に公開サれています。利用者はRubyのDSLでサーバ環境構築の手順を定義し、Rubyスクリプトを実行してサーバ環境を構築できます。</p>
+
+<p>Chefは「料理人」という言葉が由来になります。ChefはKnifeを使って、Recipeに従って、料理（サーバー構築）を作り上げます。構築対象サーバーは「Node」と呼ばれます。そのRecipeの管理単位を「Cookbook」と呼びます。CookbookにはRecipeを加え、設定ファイルのテンプレート「Template」や、環境に応じてその値を変更できる変数を定義した「Attribute」などが含まれています。後ほどそれらの要素を詳細に解説します。</p>
+
+<h3>ClientとServer</h3>
+
+<p>大規模のサーバ群の設定を一括管理する場合、C/S構造のChefを利用します。Chef Serverは構築対象の情報とCookbookを集中管理し、Chef clientはChef serverからCookbookをダウンロードして実行することで自分の環境を構築します。事前にChef clientを構築対象サーバー（Node）でインストールします。</p>
+
+<p><img src="/images/chef/chef_server_client.png" width="500" title="[Chef server and client architecture]" ></p>
+
+<p>上記の図を示すようにインフラ作業者は自分のマシンでNode情報、Cookbookなどを作成し、Gitで管理します。作成したCookbookをChef serverに配布して、各NodeはChef serverから最新のCookbookなどを取得して、ローカルでChef clientを実行し、環境を構築します。</p>
+
+<p>Chef serverはCouchDB、RabbitMQ、Solrなどのミドルウェアを使用しますが、構築手間がかかります。Opscode社はChefにいくつかの機能を追加した有償版の「Private Chef」やクラウド型の「Hosted Chef」といったサービスを提供しています。</p>
+
+<h3>Chef soloとKnife solo</h3>
+
+<p>Chef soloはChef serverが不要、構築対象サーバー（Node）でCookbookの作成管理、実行などをすべて完結させるスタンドアロンChef clientです。多くの場合、構築対象サーバーはデータセンターに置かれますので（あるいはクラウドVMなど）、Cookbook作成管理はローカルマシンで行って、SSH経由でNodeに配布し、NodeにChef clientコマンドでCookbookなどを実行します。Knife soloはKnife機能を拡張し、Cookbookのリポジトリ作成、SSH経由のNodeに配布、リモートでNodeにChef client実行等を追加します。</p>
+
+<p><img src="/images/chef/chef_solo.png" width="460" title="[Chef server and client architecture]" ></p>
+
+<h2>今回の環境</h2>
+
+<p>今回knife soloとchef soloで開発環境を構築してみましょう。</p>
+
+<p>ローカル環境：</p>
+
+<ul>
+<li>Mac osx 10.9
+
+<ul>
+<li>Ruby: 1.9.3p448</li>
+<li>Chef: 11.6.0</li>
+</ul>
+</li>
+</ul>
+
+
+<p>構築対象サーバー(ホスト名： tcserver1)：</p>
+
+<ul>
+<li>Debian GNU/Linux 7.1 (wheezy) 32bit
+
+<ul>
+<li>Ruby: 1.9.3p194</li>
+</ul>
+</li>
+</ul>
+
+
+<p>また、SSH鍵認証およびdebain作業アカウントのsudo設定（NOPASSWD)を事前に実施しました。</p>
+
+<h2>インストール</h2>
+
+<p>まず、ローカルマシンでchef soloとknife soloをいれましょう。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>ruby -v
+</span><span class='line'>ruby 1.9.3p448 <span class="o">(</span>2013-06-27 revision 41675<span class="o">)</span> <span class="o">[</span>x86_64-darwin12.4.0<span class="o">]</span>
+</span><span class='line'><span class="nv">$ </span>gem i chef --no-ri --no-rdoc            <span class="c"># chefをインストール（knifeを含む）</span>
+</span><span class='line'><span class="nv">$ </span>gem i knife-solo --no-ri --no-rdoc      <span class="c"># knife soloをインストール</span>
+</span><span class='line'><span class="nv">$ </span>gem i berkshelf --no-ri --no-rdoc       <span class="c"># cookbookを管理するツールBerkshelfをインストール</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>作業手順</h3>
+
+<p>Knife soloは以下のコマンドがあります。init、prepareとcookをよく使っています。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>knife solo
+</span><span class='line'>FATAL: Cannot find sub <span class="nb">command </span><span class="k">for</span>: <span class="s1">&#39;solo&#39;</span>
+</span><span class='line'>Available solo subcommands: <span class="o">(</span><span class="k">for </span>details, knife SUB-COMMAND --help<span class="o">)</span>
+</span><span class='line'>
+</span><span class='line'>** SOLO COMMANDS **
+</span><span class='line'>knife solo bootstrap <span class="o">[</span>USER@<span class="o">]</span>HOSTNAME <span class="o">[</span>JSON<span class="o">]</span>  <span class="o">(</span>options<span class="o">)</span>
+</span><span class='line'>knife solo clean <span class="o">[</span>USER@<span class="o">]</span>HOSTNAME
+</span><span class='line'>knife solo cook <span class="o">[</span>USER@<span class="o">]</span>HOSTNAME <span class="o">[</span>JSON<span class="o">]</span>  <span class="o">(</span>options<span class="o">)</span>          <span class="c"># 対象サーバーのChef clientをリモートで実行</span>
+</span><span class='line'>knife solo init DIRECTORY                                  <span class="c"># Chefリポジトリの雛形を作成</span>
+</span><span class='line'>knife solo prepare <span class="o">[</span>USER@<span class="o">]</span>HOSTNAME <span class="o">[</span>JSON<span class="o">]</span>  <span class="o">(</span>options<span class="o">)</span>       <span class="c"># 対象サーバーのChef client実行を準備（初回にChef clientをインストール）</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>リポジトリの作成</h4>
+
+<p>「knife solo init リポジトリ名」でリポジトリの雛形を生成します。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>knife solo init hellochef
+</span><span class='line'>Creating kitchen...
+</span><span class='line'>Creating knife.rb in kitchen...
+</span><span class='line'>Creating cupboards...
+</span><span class='line'><span class="o">[</span>wang@wang-mbp<span class="o">]</span>-<span class="o">[</span>0<span class="o">]</span>  <span class="o">[</span>/Users/wang/work<span class="o">]</span>
+</span><span class='line'><span class="nv">$ </span>tree hellochef/
+</span><span class='line'>hellochef/
+</span><span class='line'>├── cookbooks             <span class="c"># ライブラリなCookbook（Opscode communityからダウンロードされたもの）はこの中に入ります。</span>
+</span><span class='line'>├── data_bags             <span class="c"># 主にパスワード情報などを保存しておく場所</span>
+</span><span class='line'>├── nodes                 <span class="c"># 構築対象サーバーの情報はここに書いておきます</span>
+</span><span class='line'>├── roles                 <span class="c"># 役割（Webサーバー、DBサーバーなど）ごとの定義を書きます</span>
+</span><span class='line'>└── site-cookbooks        <span class="c"># 自分で作ったCookbook（セットアップ手順などを書いたRecipe）はこの中に入ります。</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>構築対象サーバー設定</h4>
+
+<p>「knife solo prepare wang@tcserver1」でtcserver1を構築対象サーバーとしてChef clientをインストールし、構築設定ファイルnodes/tcserver1.jsonを作成します。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>knife solo prepare wang@tcserver1
+</span><span class='line'>Bootstrapping Chef...
+</span><span class='line'>Updating apt caches...
+</span><span class='line'>Installing required packages...
+</span><span class='line'>Installing rubygems from source...
+</span><span class='line'>......
+</span><span class='line'>Generating node config <span class="s1">&#39;nodes/tcserver1.json&#39;</span>...
+</span><span class='line'><span class="nv">$ </span>tree
+</span><span class='line'>.
+</span><span class='line'>├── cookbooks
+</span><span class='line'>├── data_bags
+</span><span class='line'>├── nodes
+</span><span class='line'>│   └── tcserver1.json
+</span><span class='line'>├── roles
+</span><span class='line'>└── site-cookbooks
+</span><span class='line'>
+</span><span class='line'>5 directories, 1 file
+</span><span class='line'><span class="nv">$ </span>cat nodes/tcserver1.json
+</span><span class='line'><span class="o">{</span><span class="s2">&quot;run_list&quot;</span>:<span class="o">[]}</span>               <span class="c"># tcserver1.jsonの初期内容は空です</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>サーバー構築</h4>
+
+<p>「knife solo cook wang@tcserver1」でtcserver1を構築してみましょう。（tcserver1.jsonは空なので、実際に何もしません）</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>knife solo cook wang@tcserver1
+</span><span class='line'>Running Chef on tcserver1...
+</span><span class='line'>Checking Chef version...
+</span><span class='line'>Uploading the kitchen...
+</span><span class='line'>Generating solo config...
+</span><span class='line'>Running Chef...
+</span><span class='line'>Starting Chef Client, version 11.6.0
+</span><span class='line'>Compiling Cookbooks...
+</span><span class='line'>Converging 0 resources
+</span><span class='line'>Chef Client finished, 0 resources updated
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h5>Opscode communityに公開されたCookbookを取得</h5>
+
+<p>Cookbookを一から作成する必要ではありません。<a href="http://community.opscode.com/cookbooks">Opscode community</a>に数多くのCookbookを公開しています。「git clone」でGithubから取得しますが、Berkshelfというツールを利用すれば、Rubyのbundler風に扱うことができます。</p>
+
+<blockquote><p>Opscode CommunityからCookbookをダウンロードするため、ユーザ登録し、秘密鍵をダウンロードしておく必要があります。
+秘密鍵をDownloadしたら、~/.chef/username.pemにパーミッション600で保存しておきましょう。更にリポジトリの.chef/knife.rbに以下の記述を追記します。</p>
+
+<blockquote><p>client_key    &ldquo;/Users/wang/.chef/username.pem&rdquo;</p></blockquote></blockquote>
+
+<ul>
+<li>まずリポジトリにBerksfileを作成します。</li>
+</ul>
+
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>cat Berksfile
+</span><span class='line'>site:opscode
+</span><span class='line'>
+</span><span class='line'>cookbook <span class="s1">&#39;apt&#39;</span>
+</span><span class='line'>cookbook <span class="s1">&#39;build-essential&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>Berkshelfでcookbookをダウンロードします。</li>
+</ul>
+
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>berks --version
+</span><span class='line'>Berkshelf <span class="o">(</span>2.0.10<span class="o">)</span>
+</span><span class='line'><span class="nv">$ </span>berks install --path cookbooks/
+</span><span class='line'>Using apt <span class="o">(</span>2.3.0<span class="o">)</span>
+</span><span class='line'>Installing build-essential <span class="o">(</span>1.4.2<span class="o">)</span> from site: <span class="s1">&#39;http://cookbooks.opscode.com/api/v1/cookbooks&#39;</span>
+</span><span class='line'><span class="o">[</span>wang@wang-mbp<span class="o">]</span>-<span class="o">[</span>0<span class="o">]</span>  <span class="o">[</span>/Users/wang/work/hellochef<span class="o">]</span>
+</span><span class='line'><span class="nv">$ </span>tree -d cookbooks/
+</span><span class='line'>cookbooks/
+</span><span class='line'>├── apt
+</span><span class='line'>│   ├── attributes
+</span><span class='line'>│   ├── files
+</span><span class='line'>│   │   └── default
+</span><span class='line'>│   ├── libraries
+</span><span class='line'>│   ├── providers
+</span><span class='line'>│   ├── recipes
+</span><span class='line'>│   ├── resources
+</span><span class='line'>│   └── templates
+</span><span class='line'>│       ├── debian-6.0
+</span><span class='line'>│       ├── default
+</span><span class='line'>│       └── ubuntu-10.04
+</span><span class='line'>└── build-essential
+</span><span class='line'>    ├── attributes
+</span><span class='line'>    └── recipes
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h5>Cookbook新規作成</h5>
+
+<p>「knife cookbook create demo -o site-cookbooks」でdemoというCookbookの雛形をsite-cookbooksフォルダに新規作成します。</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>knife cookbook create demo -o site-cookbooks
+</span><span class='line'>** Creating cookbook demo
+</span><span class='line'>** Creating README <span class="k">for </span>cookbook: demo
+</span><span class='line'>** Creating CHANGELOG <span class="k">for </span>cookbook: demo
+</span><span class='line'>** Creating metadata <span class="k">for </span>cookbook: demo
+</span><span class='line'><span class="nv">$ </span>tree site-cookbooks/
+</span><span class='line'>site-cookbooks/
+</span><span class='line'>└── demo
+</span><span class='line'>    ├── CHANGELOG.md
+</span><span class='line'>    ├── README.md
+</span><span class='line'>    ├── attributes
+</span><span class='line'>    ├── definitions
+</span><span class='line'>    ├── files
+</span><span class='line'>    │   └── default
+</span><span class='line'>    ├── libraries
+</span><span class='line'>    ├── metadata.rb
+</span><span class='line'>    ├── providers
+</span><span class='line'>    ├── recipes
+</span><span class='line'>    │   └── default.rb
+</span><span class='line'>    ├── resources
+</span><span class='line'>    └── templates
+</span><span class='line'>        └── default
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>demoにいくつかの子フォルダーを生成しました。各フォルダーの内容を以下に紹介しましょう。</p>
+
+<h2>アーキテクチャと構成要素</h2>
+
+<p>上記のdemo cookbookのフォルダー構造によって、Chef soloの各要素を解説します。</p>
+
+<h3>リポジトリ</h3>
+
+<p>リポジトリは「knife solo init」コマンドにより生成したChef client実行用のファイルの置く場です。料理人に対して、料理を作る場所（キチン）の意味です。
+リポジトリに構築対象サーバーの情報（Nodes）と構築手順（Cookbooks）を含めます。</p>
+
+<h3>Cookbooks</h3>
+
+<p>サーバー構築の作業手順（Recipe、Attribute、Template）をまとめるものです。サーバー環境を構築する時、様々なミドルウェア、システム設定及びアプリケーション・インストールの作業を行います。一般にあるソフトのインストールと設定を１つのRecipeに集約します。</p>
+
+<p>ソフトの設定ファイルがNodeの情報により動的に生成される場合は多いですので、Rubyのテンプレート・ツールeRubyを利用して、設定ファイルの雛形を定義します。Chef clientを実行する時にNode環境と合わせる設定ファイルを生成します。</p>
+
+<p>JavaのビルドツールAntと比較すると、build.xml(&lt;project /&gt;タグ)と同等なものです。</p>
+
+<p>上記のdemoのフォルダーにいくつかの子フォルダーはありますが、その中にattributes、recipes、templatesをよく使っています。</p>
+
+<h4>Recipe</h4>
+
+<p>Recipeはサーバー構築手順を定義するものです。Cookbookに複数のRecipeを定義できますが、保守性の観点からRecipeにNode構築作業を適当に分割して、それぞれのRecipeに手順をまとめます。</p>
+
+<p>例えば、LinuxでMysqlサーバーを構築する場合、システム設定（ベースシステムソフトGccなどのインストールと設定、ユーザアカウント管理）とMysqlのインストール、設定、サービス起動を別々のRecipeに記述したほうが良いかと思います。</p>
+
+<p>Antと対照すると、Recipeは&lt;task /&gt;と同等なものです。&lt;task /&gt;に&lt;mkdir /&gt;、&lt;copy /&gt;、&lt;javac /&gt;などの内部<a href="http://ant.apache.org/manual/tasklist.html">タスク</a>を組み合わせて、ビルド作業を記述しますが、Recipeでは様々な<a href="http://docs.opscode.com/resource.html#resources">Resource</a>を組み合わせて、構築作業を記述します。</p>
+
+<h4>resource</h4>
+
+<p>構築作業の１つのステップです。ファイルコピー、パッケージ・インストール等の作業を定義します。ChefにあらゆるResourceを用意しますが、自分でRubyの関数を作成し、カスタマイズなResourceとして利用できます。</p>
+
+<p>構築作業は冪等性（べきとうせい）を求めます。同じ作業を何度実行しても同じ結果になるべき特性です。それで、自分が作成したResourceまたはbashスクリプト再利用の場合、作業前のサーバー状態と作業後の状態をきちんと管理する必要です。</p>
+
+<h4>attribute</h4>
+
+<p>RecipeはRubyのコードですので、自由にRuby変数を定義できます。複数のRecipeの間に変数を共有する場合、Attributeを利用します。</p>
+
+<p>例えば：</p>
+
+<p>attributesにdefault連想配列を定義します。</p>
+
+<figure class='code'><figcaption><span>site-cookbooks/demo/attributes/default.rb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'>  <span class="n">default</span><span class="o">[</span><span class="s2">&quot;mysql&quot;</span><span class="o">][</span><span class="s2">&quot;package_name&quot;</span><span class="o">]</span> <span class="o">=</span> <span class="s2">&quot;mysql5-server&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>recipeにnode連想配列からdefaultの値を取得します。</p>
+
+<figure class='code'><figcaption><span>site-cookbooks/demo/recipes/default.rb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'>  <span class="n">package</span> <span class="n">node</span><span class="o">[</span><span class="s2">&quot;mysql&quot;</span><span class="o">][</span><span class="s2">&quot;package_name&quot;</span><span class="o">]</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">action</span> <span class="ss">:install</span>
+</span><span class='line'>  <span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Chefを実行する時に値を代入して、構築作業を行います。</p>
+
+<figure class='code'><figcaption><span>実行時のコード </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">package</span> <span class="s2">&quot;mysql5-server&quot;</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">action</span> <span class="ss">:install</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>template</h4>
+
+<p><a href="http://magazine.rubyist.net/?0017-BundledLibraries">eRuby</a>で記述したソフトの設定ファイルの雛形です。Chef clientを実行する時、&lt;%= &gt;で囲む変数の値を代入し、構築対象サーバーの環境と合わせる設定ファイルを生成します。</p>
+
+<p>例えば：</p>
+
+<figure class='code'><figcaption><span>site-cookbooks/demo/templates/hadoop/core-site.erb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='xml'><span class='line'>  <span class="nt">&lt;property&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;name&gt;</span>hadoop.tmp.dir<span class="nt">&lt;/name&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;value&gt;</span><span class="err">&lt;</span>%= @hadoop_tmp %&gt;<span class="nt">&lt;/value&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;description&gt;</span>A base directory for temporary directories.<span class="nt">&lt;/description&gt;</span>
+</span><span class='line'>  <span class="nt">&lt;/property&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>recipeのtemplate resourceの定義に変数hadoop_tmpの値を渡します。</p>
+
+<figure class='code'><figcaption><span>site-cookbooks/demo/recipes/hadoop.rb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'>    <span class="n">template</span> <span class="s2">&quot;/opt/hadoop/etc/hadoop/core-site.xml&quot;</span> <span class="k">do</span>
+</span><span class='line'>        <span class="n">source</span> <span class="s2">&quot;hadoop/core-site.erb&quot;</span>
+</span><span class='line'>      <span class="o">.</span><span class="n">.</span><span class="o">.</span><span class="n">.</span><span class="o">.</span><span class="n">.</span>
+</span><span class='line'>
+</span><span class='line'>       <span class="n">variables</span><span class="p">(</span>
+</span><span class='line'>           <span class="ss">:hadoop_tmp</span>  <span class="o">=&gt;</span>  <span class="s2">&quot;/opt/hadoop/tmp&quot;</span><span class="p">,</span>
+</span><span class='line'>          <span class="o">.</span><span class="n">.</span><span class="o">.</span><span class="n">.</span><span class="o">.</span><span class="n">.</span>
+</span><span class='line'>       <span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>       <span class="n">not_if</span> <span class="p">{</span> <span class="no">File</span><span class="o">.</span><span class="n">exists?</span><span class="p">(</span><span class="s2">&quot;/opt/hadoop/etc/hadoop/core-site.xml&quot;</span><span class="p">)}</span>
+</span><span class='line'>    <span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Chefを実行して、生成した設定ファイルの内容は以下のようです。</p>
+
+<figure class='code'><figcaption><span>/opt/hadoop/etc/hadoop/core-site.xml </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='xml'><span class='line'>  <span class="nt">&lt;property&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;name&gt;</span>hadoop.tmp.dir<span class="nt">&lt;/name&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;value&gt;</span>/opt/hadoop/tmp<span class="nt">&lt;/value&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;description&gt;</span>A base directory for temporary directories.<span class="nt">&lt;/description&gt;</span>
+</span><span class='line'>  <span class="nt">&lt;/property&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>nodes</h3>
+
+<p>構築対象サーバーの情報を置く場所です。サーバーごとにjsonファイルで構築内容を記述します。</p>
+
+<blockquote><p>他にRoles、data_bags、Enviroments等のフォルダーも存在しますが、<a href="http://docs.opscode.com/">公式ドキュメント</a>を参考すれば良いです。ここで割愛します。
+Rolesはサーバー役割（DBサーバかWebサーバーか）を分けて定義します。Enviromentは環境種類（開発環境か本番環境かテスト環境か）によって構築内容を別々記述します。
+data_bagsは暗号化したいDB接続パスワードなど情報を定義する場所です。</p></blockquote>
+
+<h2>サンプル</h2>
+
+<p>これから環境構築の一般な作業をChef soloで試してみましょう。</p>
+
+<h3>Hello Chef</h3>
+
+<p>メッセージを出力します。</p>
+
+<figure class='code'><figcaption><span>site-cookbooks/demo/recipes/default.rb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">log</span> <span class="s1">&#39;message&#39;</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">message</span> <span class="s2">&quot;hello chef for tcserver setup&quot;</span>
+</span><span class='line'>    <span class="n">level</span> <span class="ss">:info</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>パッケージのインストール</h3>
+
+<p>ソフトをインストールします。Chef内部でDebian系（apt-get）とRedhat系(yum)の差異を吸収します。</p>
+
+<figure class='code'><figcaption><span>site-cookbooks/demo/recipes/default.rb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="sx">%w(curl unzip tree wget nkf ctags)</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">pkg</span><span class="o">|</span>
+</span><span class='line'>    <span class="n">package</span> <span class="n">pkg</span> <span class="k">do</span>
+</span><span class='line'>        <span class="n">action</span> <span class="ss">:install</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>JDKのインストール</h3>
+
+<p>JDKのインストールファイルをコマンドライン（wgetまたはcurl）でダウンロードできませんので、事前にブラウザでダウンロードして、site-cookbooks/demp/files/defaultに置いて、cookbook_file resourceを使用して、どこかにコピーして、JDKをインストールします。</p>
+
+<p>例：</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>ls -l site-cookbooks/demo/files/default/
+</span><span class='line'>total 133M
+</span><span class='line'>drwxr-xr-x 4 wang  136 10 25 18:11 ./
+</span><span class='line'>drwxr-xr-x 4 wang  136 10 25 16:01 ../
+</span><span class='line'>-rw-r--r-- 1 wang 133M 10 25 18:12 jdk-7u45-linux-i586.tar.gz
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>site-cookbooks/demo/recipes/default.rb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">cookbook_file</span> <span class="s2">&quot;/opt/jdk-7u45-linux-i586.tar.gz&quot;</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">source</span>           <span class="s2">&quot;jdk-7u45-linux-i586.tar.gz&quot;</span>
+</span><span class='line'>    <span class="n">mode</span>             <span class="mo">0644</span>
+</span><span class='line'>    <span class="n">owner</span>            <span class="s2">&quot;hadoop&quot;</span>
+</span><span class='line'>    <span class="n">group</span>            <span class="s2">&quot;hadoop&quot;</span>
+</span><span class='line'>    <span class="n">action</span>           <span class="ss">:create_if_missing</span>
+</span><span class='line'>    <span class="n">not_if</span>           <span class="p">{</span><span class="no">File</span><span class="o">.</span><span class="n">exists?</span><span class="p">(</span><span class="s2">&quot;/opt/jdk7&quot;</span><span class="p">)}</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>シェールスクリプトの例</h3>
+
+<p><a href="http://docs.opscode.com/resource.html#resources">Resource</a>に存在しない処理を行うため、bashスクリプトで構築作業を実現するのは普通の考えです。
+上記のJDKをbashスクリプトでインストールしてみます。</p>
+
+<figure class='code'><figcaption><span>site-cookbooks/demo/recipes/default.rb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">bash</span> <span class="s2">&quot;install_java_packages&quot;</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">user</span> <span class="s2">&quot;hadoop&quot;</span>
+</span><span class='line'>    <span class="n">cwd</span> <span class="sr">/opt</span>
+</span><span class='line'><span class="sr">    code &lt;&lt;-EOH</span>
+</span><span class='line'><span class="sr">        if ! ls /o</span><span class="n">pt</span><span class="o">/</span><span class="n">jdk1</span><span class="o">.</span><span class="mi">7</span><span class="o">.</span><span class="mo">0_45</span> <span class="o">&gt;</span> <span class="sr">/dev/nu</span><span class="n">ll</span> <span class="mi">2</span><span class="o">&gt;&amp;</span><span class="mi">1</span><span class="p">;</span> <span class="k">then</span>
+</span><span class='line'>            <span class="n">tar</span> <span class="n">zxf</span> <span class="n">jdk</span><span class="o">-</span><span class="mi">7</span><span class="n">u45</span><span class="o">-</span><span class="n">linux</span><span class="o">-</span><span class="n">i586</span><span class="o">.</span><span class="n">tar</span><span class="o">.</span><span class="n">gz</span>
+</span><span class='line'>            <span class="n">ln</span> <span class="o">-</span><span class="n">s</span> <span class="sr">/opt/</span><span class="n">jdk1</span><span class="o">.</span><span class="mi">7</span><span class="o">.</span><span class="mo">0_45</span> <span class="o">/</span><span class="n">opt</span><span class="o">/</span><span class="n">jdk7</span>
+</span><span class='line'>            <span class="n">sudo</span> <span class="n">chown</span> <span class="o">-</span><span class="n">R</span> <span class="ss">hadoop</span><span class="p">:</span><span class="n">hadoop</span> <span class="sr">/opt/</span><span class="n">jdk1</span><span class="o">.</span><span class="mi">7</span><span class="o">.</span><span class="mo">0_45</span> <span class="o">/</span><span class="n">opt</span><span class="o">/</span><span class="n">jdk7</span>
+</span><span class='line'>            <span class="n">rm</span> <span class="o">-</span><span class="n">f</span> <span class="n">jdk</span><span class="o">-</span><span class="mi">7</span><span class="n">u45</span><span class="o">-</span><span class="n">linux</span><span class="o">-</span><span class="n">i586</span><span class="o">.</span><span class="n">tar</span><span class="o">.</span><span class="n">gz</span>
+</span><span class='line'>        <span class="n">fi</span>
+</span><span class='line'>  <span class="no">EOH</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<blockquote><p>ここで冪等性を考慮する必要です。スクリプトを何回実行しても同じ結果を得るのは重要です。</p></blockquote>
+
+<p>Chefでは様々なResourceを用意しました。それぞれを組み合わせて、ほとんどのサーバー構築の作業を対応できます。以下ではよく使う便利なResourceです。</p>
+
+<table>
+<thead>
+<tr>
+<th align="left">Resource           </th>
+<th align="left"> 機能     </th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left">users              </td>
+<td align="left"> OSのユーザ管理      </td>
+</tr>
+<tr>
+<td align="left">group              </td>
+<td align="left"> OSのグループ管理      </td>
+</tr>
+<tr>
+<td align="left">cookbook_file      </td>
+<td align="left"> ファイル配布    </td>
+</tr>
+<tr>
+<td align="left">directory          </td>
+<td align="left"> ディレクトリ管理</td>
+</tr>
+<tr>
+<td align="left">template           </td>
+<td align="left"> テンプレートファイルを扱う</td>
+</tr>
+<tr>
+<td align="left">package            </td>
+<td align="left"> パッケージ管理</td>
+</tr>
+<tr>
+<td align="left">service            </td>
+<td align="left"> OSサービスの起動・停止・有効化・無効化</td>
+</tr>
+<tr>
+<td align="left">bash               </td>
+<td align="left"> bashスクリプトの実行</td>
+</tr>
+<tr>
+<td align="left">cron               </td>
+<td align="left"> cronジョブの管理</td>
+</tr>
+</tbody>
+</table>
+
+
+<h3>Recipeの呼び出し</h3>
+
+<p>site-cookbooks/demo/recipes/default.rbはcookbook名（demo）を直接に呼びます。</p>
+
+<figure class='code'><figcaption><span>nodes/tcserver1.json </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="p">{</span><span class="nt">&quot;run_list&quot;</span><span class="p">:[</span><span class="s2">&quot;recipe[demo]&quot;</span><span class="p">]}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>default以外のrecipe(site-cookbooks/demo/recipes/hadoop.rb)を::で引用します。</p>
+
+<figure class='code'><figcaption><span>nodes/tcserver1.json </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='json'><span class='line'><span class="p">{</span><span class="nt">&quot;run_list&quot;</span><span class="p">:[</span><span class="s2">&quot;recipe[demo::hadoop]&quot;</span><span class="p">]}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>まとめ</h2>
+
+<p>以上、Chefの概要や基本的な使い方を一通り説明しましたが、ここで紹介した機能はChefの機能のほんの一部です。また経験不足なので、今までのChef soloを使った感想をまとめます。</p>
+
+<ul>
+<li><p>Chefを使って、文字記述の手順を省け、Rubyコードで環境構築を手順化します。大量サーバーの構築は楽になります。</p></li>
+<li><p>Chefが便利なのは、Opscode communityやサードパーティが公開しているCookbookを流用することで、設定ファイルの記述を少なくできる点です。</p></li>
+<li><p>ResourceやCookbookはOSやLinuxディストリビューションの種別が異なっても同じように利用できることから、管理対象のOSを問わず同じ手順で管理が行えます。</p></li>
+<li><p>公開されているCookbookやChefのソースは複雑になっており、Cookbookの依存関係を管理するツールもありませんので、動作内容の把握や問題発生時の解決に手間取ることもあります。</p></li>
+<li><p>個人的にすべてのファイルをRubyで記述し、jsonファイルを使わない方が良いかなと思います。なお、フォルダ構造は複雑すぎで、もっと簡単な構成を改善できるはずです。</p></li>
+<li><p>attributesの変数をroles, recipe等に上書きできるのは大変わかりにくい仕組みです。</p></li>
+<li><p>Recipeの記述自由度は高すぎて何が正しいか、あるいは何がベスト・プラクティスであるかよくわかっていません。</p></li>
+</ul>
+
+
+<p>以上個人の見解ですが、間違い等あれば指摘していただきたいです。もっと深く勉強すれば、ぜひ<a href="http://tatsu-zine.com/books/chef-solo">naoyaさんの本</a>を読んで頂ければと思います。</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Haidong Wang</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-11-27T20:00:00+09:00" pubdate data-updated="true">2013年11月27日</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/devops/'>DevOps</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://sjitech.github.io/blog/2013/11/27/chef-solo-knife-solo-intro/" data-via="sjitech" data-counturl="http://sjitech.github.io/blog/2013/11/27/chef-solo-knife-solo-intro/" >Tweet</a>
+  
+  
+  <div class="g-plusone" data-size="medium"></div>
+  
+  
+    <div class="fb-like" data-send="true" data-width="450" data-show-faces="false"></div>
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2013/10/09/build-a-java-framework-from-scratch-1/" title="Previous Post: Build a Java framework from scratch(1)">&laquo; Build a Java framework from scratch(1)</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2013/12/19/ji-shi-taitoru/" title="Next Post: Node.js vs C vs Java vs Python">Node.js vs C vs Java vs Python &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>About Us</h1>
+  <p>
+  <a href="http://www.sji-inc.jp">株式会社SJI</a>エンジニアブログ<br /><br />
+   株式会社SJI先端技術研究センター及び開発部門のエンジニアが、日々の業務で培った開発ノウハウや裏話などをお届けするブログです。
+  </p>
+</section>
+<section>
+  <h1>Categories</h1>
+    <ul id="category-list"><li><a href='/blog/categories/devops/'>DevOps (1)</a></li><li><a href='/blog/categories/java/'>Java (1)</a></li><li><a href='/blog/categories/opensource/'>OpenSource (1)</a></li></ul>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2013/12/19/doesnodejsoptimized/">Node.jsは予想通りオプティマイズされたか？ (大量タイマー)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/12/19/ji-shi-taitoru/">Node.js vs C vs Java vs Python</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/11/27/chef-solo-knife-solo-intro/">Chef soloとKnife Soloで環境構築を自動化</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/10/09/build-a-java-framework-from-scratch-1/">Build a Java Framework From Scratch(1)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/08/14/how-to-write-new-post-on-octopress/">How to Write New Post on Octopress</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/sjitech">@sjitech</a> on GitHub
+  
+  <script type="text/javascript">
+    $(document).ready(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'sjitech',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+<section>
+  <h1>Links</h1>
+  <ul>
+    <li>
+      <a href="http://www.sji-inc.jp/">株式会社SJI</a>
+    </li>
+    <li>
+      <a href="http://github.com/">GitHub</a>
+    </li>
+  </ul>
+</section>
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2013 - 株式会社SJI先端技術研究センター -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+<script language="javaScript">
+$(document).ready( function () {
+   $("a[href^='http']:not([href*='" + location.hostname + "'])").attr('target', '_blank');
+   $("table:has(thead)").each(function() {
+       if (!$(this).hasClass("datalist")) {
+           $(this).addClass("datalist");
+       }
+   });
+})
+</script>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'sjitech';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://sjitech.github.io/blog/2013/11/27/chef-solo-knife-solo-intro/';
+        var disqus_url = 'http://sjitech.github.io/blog/2013/11/27/chef-solo-knife-solo-intro/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) {return;}
+  js = d.createElement(s); js.id = id; js.async = true;
+  js.src = "//connect.facebook.net/en_US/all.js#appId=212934732101925&xfbml=1";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+
+
+  <script type="text/javascript">
+    (function() {
+      var script = document.createElement('script'); script.type = 'text/javascript'; script.async = true;
+      script.src = 'https://apis.google.com/js/plusone.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(script, s);
+    })();
+  </script>
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

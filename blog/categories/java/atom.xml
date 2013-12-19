@@ -1,0 +1,1062 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Java | Technology of SJI]]></title>
+  <link href="http://sjitech.github.io/blog/categories/java/atom.xml" rel="self"/>
+  <link href="http://sjitech.github.io/"/>
+  <updated>2013-12-19T10:35:11+09:00</updated>
+  <id>http://sjitech.github.io/</id>
+  <author>
+    <name><![CDATA[株式会社SJI先端技術研究センター]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Build a Java framework from scratch(1)]]></title>
+    <link href="http://sjitech.github.io/blog/2013/10/09/build-a-java-framework-from-scratch-1/"/>
+    <updated>2013-10-09T15:02:00+09:00</updated>
+    <id>http://sjitech.github.io/blog/2013/10/09/build-a-java-framework-from-scratch-1</id>
+    <content type="html"><![CDATA[<p class="info">
+本連載はスクラッチで軽量Javaフレームワークの設計、実現方法を解説します。Javaの知識を深めながら、Spring FrameworkのようなAOPxDIフレームワークをゼロから作成してみます。
+</p>
+
+
+<p>自力でAOPとDI機能を実現するため、ある程度のJVM知識を習得する必要です。ですから、本題の前にJVM知識を紹介していきたいです。クラスレイアウト定義の解説を始め、JVMランタイム仕組みを紹介し、ASMフレームワークでJava classを操作する方法からAOPとDI機能の実装を展開します。<br /></p>
+
+<!-- more -->
+
+
+<p>では、早速<a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html">クラスレイアウト仕様</a>を解説します。以下の内容は<a href="http://docs.oracle.com/javase/specs/jvms/se7/html/index.html">Java仮想マシン仕様SE 7版</a>を参照します。一部用語を英語のまま使用します。</p>
+
+<h2>テスト環境</h2>
+
+<ul>
+<li>OS: Mac OSX 10.8.5</li>
+<li>Java: Oracle 1.7.0_40(64bit)</li>
+</ul>
+
+
+<h2>Java class format</h2>
+
+<p>バイナリJavaクラスファイルは以下の特徴があります。<br /></p>
+
+<ul>
+<li>ファイルは8ビット（1バイト）のストリームで構成されます。8ビット以上のデータはBig-Endianの順番で保存します。いわば、高いバイトは低いアドレスに保存されます。（IBMのPowerPCプロセッサはこの順番を採用します。Intelのx86プロセッサは逆順番のLittle-Endianを採用します）。</li>
+<li>クラスのレイアウトはC言語の構造体のような可変長配列で構成されます。主に2つのデータ・タイプ（符号なし整数とテーブル）があります。
+
+<ul>
+<li><code>u1</code>: 符号なし8ビット整数</li>
+<li><code>u2</code>: Big-Endianバイト順の符号なし16ビット整数</li>
+<li><code>u4</code>: Big-Endianバイト順の符号なし32ビット整数</li>
+<li><code>テーブル</code>: いくつかの型の可変長の配列。テーブルのテーブル内の項目数はカウント数により識別されるが、テーブルのバイト内のサイズは項目それぞれを調査することのみで決定される。</li>
+</ul>
+</li>
+</ul>
+
+
+<p><a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html">Java仮想マシン仕様</a>に記載されたJavaクラスの構造は以下のようです。</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">ClassFile</span> <span class="p">{</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="n">u4</span>             <span class="n">magic</span><span class="p">;</span>                                    <span class="c1">// マジックナンバー : 0xCAFEBABE</span>
+</span><span class='line'><span class="n">u2</span>             <span class="n">minor_version</span><span class="p">;</span>                            <span class="c1">// フォーマットのマイナーバージョン</span>
+</span><span class='line'><span class="n">u2</span>             <span class="n">major_version</span><span class="p">;</span>                            <span class="c1">// フォーマットのメジャーバージョン</span>
+</span><span class='line'><span class="n">u2</span>             <span class="n">constant_pool_count</span><span class="p">;</span>                      <span class="c1">// 定数プール数</span>
+</span><span class='line'><span class="n">cp_info</span>        <span class="n">constant_pool</span><span class="p">[</span><span class="n">constant_pool_count</span><span class="o">-</span><span class="mi">1</span><span class="p">];</span>     <span class="c1">// 定数プール情報配列</span>
+</span><span class='line'><span class="n">u2</span>             <span class="n">access_flags</span><span class="p">;</span>                             <span class="c1">// アクセスフラグ : 例えばクラスがpublicかabstractかなど</span>
+</span><span class='line'><span class="n">u2</span>             <span class="n">this_class</span><span class="p">;</span>                               <span class="c1">// thisクラス</span>
+</span><span class='line'><span class="n">u2</span>             <span class="n">super_class</span><span class="p">;</span>                              <span class="c1">// 親クラス</span>
+</span><span class='line'><span class="n">u2</span>             <span class="n">interfaces_count</span><span class="p">;</span>                         <span class="c1">// インタフェース数</span>
+</span><span class='line'><span class="n">u2</span>             <span class="n">interfaces</span><span class="p">[</span><span class="n">interfaces_count</span><span class="p">];</span>             <span class="c1">// インタフェースの情報配列</span>
+</span><span class='line'><span class="n">u2</span>             <span class="n">fields_count</span><span class="p">;</span>                             <span class="c1">// クラスまたインスタンス変数の個数</span>
+</span><span class='line'><span class="n">field_info</span>     <span class="n">fields</span><span class="p">[</span><span class="n">fields_count</span><span class="p">];</span>                     <span class="c1">// クラスまたインスタンス変数情報配列</span>
+</span><span class='line'><span class="n">u2</span>             <span class="n">methods_count</span><span class="p">;</span>                            <span class="c1">// メソッド数（親クラスからのメソッドが含まない）</span>
+</span><span class='line'><span class="n">method_info</span>    <span class="n">methods</span><span class="p">[</span><span class="n">methods_count</span><span class="p">];</span>                   <span class="c1">// メソッドの情報配列</span>
+</span><span class='line'><span class="n">u2</span>             <span class="n">attributes_count</span><span class="p">;</span>                         <span class="c1">// クラス内の任意属性の数量</span>
+</span><span class='line'><span class="n">attribute_info</span> <span class="n">attributes</span><span class="p">[</span><span class="n">attributes_count</span><span class="p">];</span>             <span class="c1">// クラス内の任意属性の情報配列（例えばソースファイル名、行番号など）</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>コメントを見ればわかりますが、少し説明します。constant_pool[constant_pool_count-1]を一見すると配列ですが、各要素のタイプと長さは異なっています。</p>
+
+<ul>
+<li>u4 magic: マジックナンバーです。このファイルはpng画像ファイルではなく、JavaソースをコンパイルしたJava classファイルであることを示します。4バイトの0xCAFEBABEで固定です。</li>
+<li>u2 major_version: 使用されるクラスファイルフォーマットのメジャーバージョン数です。
+
+<ul>
+<li>J2SE 7 = 51（0x33 十六進）</li>
+<li>J2SE 6.0 = 50（0x32 十六進）</li>
+<li>J2SE 5.0 = 49（0x31 十六進）</li>
+<li>JDK 1.4 = 48（0x30 十六進）</li>
+</ul>
+</li>
+<li>u2 constant_pool_count: 定数プールのカウントです。</li>
+<li><p>cp_info constant_pool[constant_pool_count-1]: 定数プールテーブル、リテラル数、文字列、そしてクラスやメソッドへの参照といった項目を含む、可変長の定数プールエントリです。
+合計エントリ（定数テーブルカウント &ndash; 1）数を含む、1から始まり索引付けされます。Java SE 7 Editionに14種類のcp_infoはあります。tagの値で区別します。</p>
+
+<table>
+<thead>
+<tr>
+<th align="left">  種類                              </th>
+<th align="center"> tag </th>
+<th align="left"> 内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left"> CONSTANT_Utf8_info                 </td>
+<td align="center"> 1   </td>
+<td align="left"> UTF-8 (Unicode) 文字列</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_Integer_info              </td>
+<td align="center"> 3   </td>
+<td align="left"> Integer : Big-Endianフォーマットによる符号付き32ビット2の補数</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_Float_info                </td>
+<td align="center"> 4   </td>
+<td align="left"> Float : 32ビット単精度IEEE 754浮動小数点数</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_Long_info                 </td>
+<td align="center"> 5   </td>
+<td align="left"> Long : Big-Endianフォーマットによる符号付き64ビット2の補数（定数テーブルの2つのスロットを占める）</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_Double_info               </td>
+<td align="center"> 6   </td>
+<td align="left"> Double : 64ビット倍精度IEEE 754浮動小数点数（定数テーブルの2つのスロットを占める）</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_Class_info                </td>
+<td align="center"> 7   </td>
+<td align="left"> クラス参照 : （内部フォーマットによる）完全修飾型クラス名を含むUTF-8文字列による定数テーブル内のインデックス（Big-Endian）</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_String_info               </td>
+<td align="center"> 8   </td>
+<td align="left"> 文字列参照 : UTF-8による定数プール内のインデックス（Big-Endian）</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_Fieldref_info             </td>
+<td align="center"> 9   </td>
+<td align="left"> フィールド参照 : 定数プール内にある2つのインデックス、最初はクラス参照で次は名前および型の記述（Big-Endian）</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_Methodref_info            </td>
+<td align="center"> 10  </td>
+<td align="left"> メソッド参照 : 定数プール内にある2つのインデックス、最初はクラス参照で次は名前および型の記述（Big-Endian）</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_InterfaceMethodref_info   </td>
+<td align="center"> 11  </td>
+<td align="left"> インタフェース参照 : 定数プール内にある2つのインデックス、最初はクラス参照で次は名前および型の記述（Big-Endian）</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_NameAndType_info          </td>
+<td align="center"> 12  </td>
+<td align="left"> 名前および型の記述 : UTF-8による定数プール内のインデックス、最初は名前（識別子）を表し次は特別にエンコードされた型</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_MethodHandle_info         </td>
+<td align="center"> 15  </td>
+<td align="left"> Java SE 7からinvokedynamicの対応</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_MethodType_info           </td>
+<td align="center"> 16  </td>
+<td align="left"> Java SE 7からinvokedynamicの対応</td>
+</tr>
+<tr>
+<td align="left"> CONSTANT_InvokeDynamic_info        </td>
+<td align="center"> 17  </td>
+<td align="left"> Java SE 7からinvokedynamicの対応   </td>
+</tr>
+</tbody>
+</table>
+
+
+<p> 各cp_infoの詳細は後ほど使われる際に説明します。</p></li>
+<li><p>u2 access_flags: ビットマスクによるアクセスフラグです。</p>
+
+<table>
+<thead>
+<tr>
+<th align="left">  フラグ         </th>
+<th align="left"> 値     </th>
+<th align="left">  キーワード</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left">  ACC_PUBLIC     </td>
+<td align="left"> 0x0001 </td>
+<td align="left"> public</td>
+</tr>
+<tr>
+<td align="left">  ACC_FINAL      </td>
+<td align="left"> 0x0010 </td>
+<td align="left"> final</td>
+</tr>
+<tr>
+<td align="left">  ACC_SUPER      </td>
+<td align="left"> 0x0020 </td>
+<td align="left"> super</td>
+</tr>
+<tr>
+<td align="left">  ACC_INTERFACE  </td>
+<td align="left"> 0x0200 </td>
+<td align="left"> interface</td>
+</tr>
+<tr>
+<td align="left">  ACC_ABSTRACT   </td>
+<td align="left"> 0x0400 </td>
+<td align="left"> abstract</td>
+</tr>
+<tr>
+<td align="left">  ACC_SYNTHETIC  </td>
+<td align="left"> 0x1000 </td>
+<td align="left"> synthetic</td>
+</tr>
+<tr>
+<td align="left">  ACC_ANNOTATION </td>
+<td align="left"> 0x2000 </td>
+<td align="left"> annotation</td>
+</tr>
+<tr>
+<td align="left">  ACC_ENUM       </td>
+<td align="left"> 0x4000 </td>
+<td align="left"> enum</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li><p>u2 this_class: 定数プールにthisクラスの参照(CONSTANT_Class_info)</p></li>
+</ul>
+
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">CONSTANT_Class_info</span> <span class="p">{</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="n">u1</span> <span class="n">tag</span><span class="p">;</span>                    <span class="c1">// 7</span>
+</span><span class='line'><span class="n">u2</span> <span class="n">name_index</span><span class="p">;</span>             <span class="c1">// 定数プールのインデックス</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<ul>
+<li>u2 super_class: 親クラスの参照(CONSTANT_Class_info)</li>
+<li>u2 interface_counts: 実現したインタフェース数</li>
+<li>u2 interface[interface_counts]: インタフェース参照(CONSTANT_Class_info)</li>
+<li>u2 fields_count:クラス変数とインスタンス変数の個数</li>
+<li>field_info fields[fields_count]:フィールド参照(field_info)</li>
+</ul>
+
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">field_info</span> <span class="p">{</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="n">u2</span>             <span class="n">access_flags</span><span class="p">;</span>                 <span class="c1">// 変数のアクセスフラグ</span>
+</span><span class='line'><span class="n">u2</span>             <span class="n">name_index</span><span class="p">;</span>                   <span class="c1">// 変数名の定数プールのインデックス(CONSTANT_Utf8_info)</span>
+</span><span class='line'><span class="n">u2</span>             <span class="n">descriptor_index</span><span class="p">;</span>             <span class="c1">// 変数タイプの定数プールのインデックス(CONSTANT_Utf8_info)</span>
+</span><span class='line'><span class="n">u2</span>             <span class="n">attributes_count</span><span class="p">;</span>             <span class="c1">// 属性数</span>
+</span><span class='line'><span class="n">attribute_info</span> <span class="n">attributes</span><span class="p">[</span><span class="n">attributes_count</span><span class="p">];</span> <span class="c1">// 属性参照(annotationなど)</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>アクセスフラグは<a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.5">ここ</a>を参照できます。</p>
+
+<ul>
+<li>u2 methods_count: メソッド数</li>
+<li>method_info methods[methods_count]: メソッド参照(method_info)</li>
+</ul>
+
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">method_info</span> <span class="p">{</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="n">u2</span>             <span class="n">access_flags</span><span class="p">;</span>                  <span class="c1">// メソッドのアクセスフラグ</span>
+</span><span class='line'><span class="n">u2</span>             <span class="n">name_index</span><span class="p">;</span>                    <span class="c1">// メソッド名の定数プールのインデックス</span>
+</span><span class='line'><span class="n">u2</span>             <span class="n">descriptor_index</span><span class="p">;</span>              <span class="c1">// メソッド定義文字列の定数プールのインデックス</span>
+</span><span class='line'><span class="n">u2</span>             <span class="n">attributes_count</span><span class="p">;</span>              <span class="c1">// 属性数</span>
+</span><span class='line'><span class="n">attribute_info</span> <span class="n">attributes</span><span class="p">[</span><span class="n">attributes_count</span><span class="p">];</span>  <span class="c1">// 属性参照（annotation, excpetionなど)</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>アクセスフラグは<a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6">ここ</a>を参照できます。</p>
+
+<ul>
+<li>u2 attributes_count: 任意の属性数</li>
+<li><p>attribute_info attributes[attributes_count]: 任意の属性参照</p>
+
+<p>attribute_infoはクラスファイルの最後に置かれます。例外、ソース行番号、デバッグ情報、annotationなどの標準属性以外、ユーザ定義の属性もあります。</p>
+
+<p>そして属性の長さは固定ではありません。属性にネスト属性を含むことも可能です。</p></li>
+</ul>
+
+
+<h2>サンプル</h2>
+
+<p>話はやや複雑になりますが、簡単な例をあげます。
+以下の簡単なクラスを作成します。シンプルなクラスなので、annotation, 例外処理などがありません。</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>簡単なクラス &ndash; Sample.java </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kn">package</span> <span class="n">net</span><span class="o">.</span><span class="na">codemelon</span><span class="o">.</span><span class="na">brisk</span><span class="o">.</span><span class="na">demo</span><span class="o">.</span><span class="na">jvm</span><span class="o">;&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;/&lt;</span><span class="n">em</span><span class="o">&gt;*</span>
+</span><span class='line'> <span class="o">*</span> <span class="n">Sample</span> <span class="kd">class</span> <span class="nc">for</span> <span class="n">interpret</span> <span class="n">JVM</span> <span class="kd">class</span> <span class="nc">file</span> <span class="n">structure</span><span class="o">.</span>
+</span><span class='line'> <span class="o">*</span>
+</span><span class='line'> <span class="o">*</span> <span class="nd">@author</span> <span class="o">:</span> <span class="n">Haidong</span> <span class="n">Wang</span>
+</span><span class='line'> <span class="o">&lt;/</span><span class="n">em</span><span class="o">&gt;/</span>
+</span><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">Sample</span> <span class="o">{&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="kd">private</span> <span class="n">String</span> <span class="n">name</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">public</span> <span class="kd">static</span> <span class="kd">final</span> <span class="n">String</span> <span class="n">AOP_CLASS_SUFFIX</span> <span class="o">=</span> <span class="s">&quot;$$_brisk_aop_enhanced&quot;</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">protected</span> <span class="kt">int</span> <span class="n">age</span> <span class="o">=</span> <span class="mi">30</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">public</span> <span class="kt">void</span> <span class="nf">init</span><span class="o">(</span><span class="n">String</span> <span class="n">name</span><span class="o">,</span> <span class="kt">int</span> <span class="n">age</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">this</span><span class="o">.</span><span class="na">name</span> <span class="o">=</span> <span class="n">name</span><span class="o">;</span>
+</span><span class='line'>    <span class="k">this</span><span class="o">.</span><span class="na">age</span> <span class="o">=</span> <span class="n">age</span><span class="o">;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">public</span> <span class="n">String</span> <span class="nf">getName</span><span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="k">this</span><span class="o">.</span><span class="na">name</span><span class="o">;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">public</span> <span class="kd">static</span> <span class="n">String</span> <span class="nf">getAopClassSuffix</span><span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="n">Sample</span><span class="o">.</span><span class="na">AOP_CLASS_SUFFIX</span><span class="o">;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>jdk_1.7.0_40でコンパイルしたクラスは以下のようです。</p>
+
+<p><img src="/images/brisk/sample_class_hex.png" title="[Sample.class]" ></p>
+
+<p><a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6">Java仮想マシン仕様</a>を参照しながら、上記のバイトコードを解読してみましょう。</p>
+
+<ul>
+<li>マジック・ナンバー<br />
+クラスファイルの先頭4バイトは、Javaのクラスファイルであることを示すマジックナンバーで、0xCAFEBABE固定です。</li>
+</ul>
+
+
+<p>0000: <code>CA FE BA BE</code> 00 00 00 33 00 21 0A 00 06 00 1B 09 &hellip;&hellip;.3.!&hellip;&hellip;</p>
+
+<ul>
+<li>バージョン番号<br />
+次の4バイトは、クラスファイルが実行対象とするJavaバージョンを識別するバージョン番号です。前半2バイトがマイナー・バージョンで後半2バイトがメジャーバージョンとなります。<br />
+以下は、マイナーバージョンが0（0x0000）、メジャーバージョンが51（0x0033）を表します。上のテーブルによって、Java SE 7のバージョン番号は51ですね。</li>
+</ul>
+
+
+<p>0000: CA FE BA BE <code>00 00 00 33</code> 00 21 0A 00 06 00 1B 09 &hellip;&hellip;.3.!&hellip;&hellip;</p>
+
+<ul>
+<li>定数プール数<br />
+リテラル、実行時に解決するメソッド、フィールド参照、などの各種定数を持つ定数プールの個数です。定数プールは1から数えますので、Sampleクラスは32(0x21 &ndash; 1)個の定数があります。</li>
+</ul>
+
+
+<p>0000: CA FE BA BE 00 00 00 33 <code>00 21</code> 0A 00 06 00 1B 09 &hellip;&hellip;.3.!&hellip;&hellip;</p>
+
+<ul>
+<li>定数プールの情報配列<br />
+定数プールのフォーマットは種類により異なります。種類は先頭1バイトのタグで決まります。<br />
+定数プールの詳細をみってみましょう。まず1番目の定数をみます。</li>
+</ul>
+
+
+<p>0000: CA FE BA BE 00 00 00 33 00 21 <code>0A</code> 00 06 00 1B 09 &hellip;&hellip;.3.!&hellip;&hellip;</p>
+
+<p>0x0aは10ですので、上のテーブルによってConstant_Methodref_infoの定数です。Constant_Methodref_infoの構造は以下のようです。</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">CONSTANT_Methodref_info</span> <span class="p">{</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="n">u1</span> <span class="n">tag</span><span class="p">;</span>                 <span class="c1">// 10</span>
+</span><span class='line'><span class="n">u2</span> <span class="n">class_index</span><span class="p">;</span>         <span class="c1">// メソッド所属クラスのインデックス</span>
+</span><span class='line'><span class="n">u2</span> <span class="n">name_and_type_index</span><span class="p">;</span> <span class="c1">// メソッド定義の定数のインデックス</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>class_indexは0x06です。定数プールの6番目のCONSTANT_Class_info定数を指します。</p>
+
+<p>0000: CA FE BA BE 00 00 00 33 00 21 0A <code>00 06</code> 00 1B 09 &hellip;&hellip;.3.!&hellip;&hellip;</p>
+
+<p>name_and_type_indexは0x1bです。定数プールの27番目のCONSTANT_NameAndType_info定数を参照します。<br /></p>
+
+<p>0000: CA FE BA BE 00 00 00 33 00 21 0A 00 06 <code>00 1B</code> 09 &hellip;&hellip;.3.!&hellip;&hellip;</p>
+
+<p>定数プールの27番のデータは以下のようです。</p>
+
+<p>0140: 6C 65 2E 6A 61 76 61 <code>0C 00 0D 00 0E</code> 0C 00 0B 00 le.java&hellip;&hellip;&hellip;</p>
+
+<p>CONSTANT_NameAndType_infoの構造は以下のようです。</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">CONSTANT_NameAndType_info</span> <span class="p">{</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="n">u1</span> <span class="n">tag</span><span class="p">;</span>                    <span class="c1">// 12</span>
+</span><span class='line'><span class="n">u2</span> <span class="n">name_index</span><span class="p">;</span>             <span class="c1">// メソッド名または変数名の定数プールのインデックス</span>
+</span><span class='line'><span class="n">u2</span> <span class="n">descriptor_index</span><span class="p">;</span>       <span class="c1">// メソッドまたは変数のメソッドの引数の型と個数，及び戻り値の型（voidを含む）</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>上記の方法を従って、すべての定数を解読できます。バイナリは読みづらいですが、JDKに便利なのツールを提供しています。<br />
+javap -version Sample.classでバイナリデータをJVMのアセンブリコードに変換します。定数プールの内容もリストアプされます。</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'><figcaption><span>[Sampleクラスの定数プール] </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">net</span><span class="o">.</span><span class="na">codemelon</span><span class="o">.</span><span class="na">brisk</span><span class="o">.</span><span class="na">demo</span><span class="o">.</span><span class="na">jvm</span><span class="o">.</span><span class="na">Sample</span>
+</span><span class='line'>  <span class="nl">SourceFile:</span> <span class="o">&amp;</span><span class="n">ldquo</span><span class="o">;</span><span class="n">Sample</span><span class="o">.</span><span class="na">java</span><span class="o">&amp;</span><span class="n">rdquo</span><span class="o">;</span>
+</span><span class='line'>  <span class="n">minor</span> <span class="nl">version:</span> <span class="mi">0</span>
+</span><span class='line'>  <span class="n">major</span> <span class="nl">version:</span> <span class="mi">51</span>
+</span><span class='line'>  <span class="nl">flags:</span> <span class="n">ACC_PUBLIC</span><span class="o">,</span> <span class="n">ACC_SUPER</span>
+</span><span class='line'><span class="n">Constant</span> <span class="nl">pool:</span>
+</span><span class='line'>   <span class="err">#</span><span class="mi">1</span> <span class="o">=</span> <span class="n">Methodref</span>          <span class="err">#</span><span class="mi">6</span><span class="o">.</span><span class="err">#</span><span class="mi">27</span>         <span class="c1">//  java/lang/Object.&amp;ldquo;&lt;init&gt;&amp;rdquo;:()V</span>
+</span><span class='line'>   <span class="err">#</span><span class="mi">2</span> <span class="o">=</span> <span class="n">Fieldref</span>           <span class="err">#</span><span class="mi">5</span><span class="o">.</span><span class="err">#</span><span class="mi">28</span>         <span class="c1">//  net/codemelon/brisk/demo/jvm/Sample.age:I</span>
+</span><span class='line'>   <span class="err">#</span><span class="mi">3</span> <span class="o">=</span> <span class="n">Fieldref</span>           <span class="err">#</span><span class="mi">5</span><span class="o">.</span><span class="err">#</span><span class="mi">29</span>         <span class="c1">//  net/codemelon/brisk/demo/jvm/Sample.name:Ljava/lang/String;</span>
+</span><span class='line'>   <span class="err">#</span><span class="mi">4</span> <span class="o">=</span> <span class="n">String</span>             <span class="err">#</span><span class="mi">30</span>            <span class="c1">//  $$&lt;em&gt;brisk_aop_enhanced</span>
+</span><span class='line'>   <span class="err">#</span><span class="mi">5</span> <span class="o">=</span> <span class="n">Class</span>              <span class="err">#</span><span class="mi">31</span>            <span class="c1">//  net/codemelon/brisk/demo/jvm/Sample</span>
+</span><span class='line'>   <span class="err">#</span><span class="mi">6</span> <span class="o">=</span> <span class="n">Class</span>              <span class="err">#</span><span class="mi">32</span>            <span class="c1">//  java/lang/Object</span>
+</span><span class='line'>   <span class="err">#</span><span class="mi">7</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">name</span>
+</span><span class='line'>   <span class="err">#</span><span class="mi">8</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">Ljava</span><span class="o">/</span><span class="n">lang</span><span class="o">/</span><span class="n">String</span><span class="o">;</span>
+</span><span class='line'>   <span class="err">#</span><span class="mi">9</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">AOP_CLASS_SUFFIX</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">10</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">ConstantValue</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">11</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">age</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">12</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">I</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">13</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="o">&lt;</span><span class="n">init</span><span class="o">&gt;</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">14</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="o">()</span><span class="n">V</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">15</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">Code</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">16</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">LineNumberTable</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">17</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">LocalVariableTable</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">18</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="k">this</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">19</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">Lnet</span><span class="o">/</span><span class="n">codemelon</span><span class="o">/</span><span class="n">brisk</span><span class="o">/</span><span class="n">demo</span><span class="o">/</span><span class="n">jvm</span><span class="o">/</span><span class="n">Sample</span><span class="o">;</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">20</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">init</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">21</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="o">(</span><span class="n">Ljava</span><span class="o">/</span><span class="n">lang</span><span class="o">/</span><span class="n">String</span><span class="o">;</span><span class="n">I</span><span class="o">)</span><span class="n">V</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">22</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">getName</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">23</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="o">()</span><span class="n">Ljava</span><span class="o">/</span><span class="n">lang</span><span class="o">/</span><span class="n">String</span><span class="o">;</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">24</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">getAopClassSuffix</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">25</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">SourceFile</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">26</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">Sample</span><span class="o">.</span><span class="na">java</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">27</span> <span class="o">=</span> <span class="n">NameAndType</span>        <span class="err">#</span><span class="mi">13</span><span class="o">:</span><span class="err">#</span><span class="mi">14</span>        <span class="c1">//  &amp;ldquo;&lt;init&gt;&amp;rdquo;:()V</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">28</span> <span class="o">=</span> <span class="n">NameAndType</span>        <span class="err">#</span><span class="mi">11</span><span class="o">:</span><span class="err">#</span><span class="mi">12</span>        <span class="c1">//  age:I</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">29</span> <span class="o">=</span> <span class="n">NameAndType</span>        <span class="err">#</span><span class="mi">7</span><span class="o">:</span><span class="err">#</span><span class="mi">8</span>          <span class="c1">//  name:Ljava/lang/String;</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">30</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">$$</span><span class="o">&lt;/</span><span class="n">em</span><span class="o">&gt;</span><span class="n">brisk_aop_enhanced</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">31</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">net</span><span class="o">/</span><span class="n">codemelon</span><span class="o">/</span><span class="n">brisk</span><span class="o">/</span><span class="n">demo</span><span class="o">/</span><span class="n">jvm</span><span class="o">/</span><span class="n">Sample</span>
+</span><span class='line'>  <span class="err">#</span><span class="mi">32</span> <span class="o">=</span> <span class="n">Utf8</span>               <span class="n">java</span><span class="o">/</span><span class="n">lang</span><span class="o">/</span><span class="n">Object</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>定数プールに32個定数があることをわかりますね。#1から数えますが、#0はクラスが定数プールを参照しないことを示します。
+ですから、constant_pool_countの値は33(0x21)です。</p>
+
+<p>上の1番目の定数のclass_indexは#6ですが、java.lang.Objectのメソッドをわかります。</p>
+
+<p class="info">
+完全修飾されたJavaのクラス名は、「java.lang.Object」のように慣例的にドットで区分けされますが、Java仮想マシン内部形式は「java/lang/Object」のように、代わりにスラッシュを使用します。
+</p>
+
+
+<p>name_and_type_indexは#27のCONSTANT_NameAndType_info(上記のコードによると&lt;init&gt;メソッド)です。コンパイルの時に自動生成したデフォールトコンストラクターですね。<br />
+メソッドの引数と戻り値は()Vを指します。Java仮想マシン内部でデータタイプの表示を以下の表にまとめました。</p>
+
+<table>
+<thead>
+<tr>
+<th align="left">BaseType Character </th>
+<th align="left"> Type      </th>
+<th align="left"> Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="left">B                  </td>
+<td align="left"> byte      </td>
+<td align="left"> signed byte</td>
+</tr>
+<tr>
+<td align="left">C                  </td>
+<td align="left"> char      </td>
+<td align="left"> Unicode character</td>
+</tr>
+<tr>
+<td align="left">D                  </td>
+<td align="left"> double    </td>
+<td align="left"> double-precision floating-point value</td>
+</tr>
+<tr>
+<td align="left">F                  </td>
+<td align="left"> float     </td>
+<td align="left"> single-precision floating-point value</td>
+</tr>
+<tr>
+<td align="left">I                  </td>
+<td align="left"> int       </td>
+<td align="left"> integer</td>
+</tr>
+<tr>
+<td align="left">J                  </td>
+<td align="left"> long      </td>
+<td align="left"> long integer</td>
+</tr>
+<tr>
+<td align="left">LClassname;        </td>
+<td align="left"> reference </td>
+<td align="left"> an instance of class Classname</td>
+</tr>
+<tr>
+<td align="left">S                  </td>
+<td align="left"> short     </td>
+<td align="left"> signed short</td>
+</tr>
+<tr>
+<td align="left">Z                  </td>
+<td align="left"> boolean   </td>
+<td align="left"> true or flase</td>
+</tr>
+<tr>
+<td align="left">[                  </td>
+<td align="left"> reference </td>
+<td align="left"> one array dimension(一次元配列)</td>
+</tr>
+<tr>
+<td align="left">V                  </td>
+<td align="left"> void      </td>
+<td align="left"> return void</td>
+</tr>
+</tbody>
+</table>
+
+
+<p>上の表によって、()Vは引数無し、戻り値無しの意味です。<br />
+複雑な例をあげます。二次元配列String[][]は[[Ljava/lang/Stringを表します。int[][]なら[[Iを表します。</p>
+
+<ul>
+<li>アクセスフラグ<br />
+クラス宣言またはインタフェース宣言で使用する修飾子のビットマスクを表します。</li>
+</ul>
+
+
+<p>01A0: 2F 4F 62 6A 65 63 74 <code>00 21</code> 00 05 00 06 00 00 00 /Object.!&hellip;&hellip;.</p>
+
+<p>Sampleクラスのアクセスフラグは0x0021 = 0x0001|0x0020（すなわち、ACC_PUBLIC|ACC_SUPER）です。<br />
+ACC_PUBLICはpublicですが、ACC_SUPERはJDK 1.2以降強制的に追加された修飾子です。</p>
+
+<ul>
+<li>this_class<br />
+Sampleクラス情報のインデックスです。</li>
+</ul>
+
+
+<p>01A0: 2F 4F 62 6A 65 63 74 00 21 <code>00 05</code> 00 06 00 00 00 /Object.!&hellip;&hellip;.</p>
+
+<p>定数プールの#5はCONSTANT_Class_info定数です。クラス名name_indexは#31のCONSTANT_Utf8_info定数を参照します。<br />
+それによって、クラスの名がnet/codemelon/brisk/demo/jvm/Sampleであることはわかります。</p>
+
+<ul>
+<li>親クラス<br /></li>
+</ul>
+
+
+<p>01A0: 2F 4F 62 6A 65 63 74 00 21 00 05 <code>00 06</code> 00 00 00 /Object.!&hellip;&hellip;.</p>
+
+<p>定数#6はjava/lang/Objectです。宣言していない場合、暗黙でjava.lang.Objectを継承しますね。</p>
+
+<ul>
+<li>インタフェース<br />
+インタフェース数とインタフェース情報配列はクラスを実現したインタフェース情報です。Sampleクラスはinterfaceがありませんので、interfaces_countは0x00です。</li>
+</ul>
+
+
+<p>01A0: 2F 4F 62 6A 65 63 74 00 21 00 05 00 06 <code>00 00</code> 00 /Object.!&hellip;&hellip;.</p>
+
+<ul>
+<li>インスタンス変数とクラス変数<br />
+Sampleクラスは2つのインスタンス変数と1つのクラス変数（合わせて3つ）があります。親クラスの変数を含まないことを注意してください。<br />
+変数の構造は上のfield_infoです。</li>
+</ul>
+
+
+<p>01A0: 2F 4F 62 6A 65 63 74 00 21 00 05 00 06 00 00 <code>00</code> /Object.!&hellip;&hellip;.<br />
+01B0: <code>03</code> 00 02 00 07 00 08 00 00 00 19 00 09 00 08 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>以下は変数nameの内容を示します。</p>
+
+<p><img src="/images/brisk/name_field_info.png" title="[private String name]" ></p>
+
+<p>もっと複雑な例としてクラス変数AOP_CLASS_SUFFIXを解析しましょう。</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="kd">public</span> <span class="kd">static</span> <span class="kd">final</span> <span class="n">String</span> <span class="n">AOP_CLASS_SUFFIX</span> <span class="o">=</span> <span class="s">&quot;$$_brisk_aop_enhanced&quot;</span><span class="o">;</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>AOP_CLASS_SUFFIXのaccess_flagsはACC_PUBLIC | ACC_STATIC | ACC_FINAL (0x0001 | 0x0008 | 0x0010) = 0x19です。</p>
+
+<p>01B0: 03 00 02 00 07 00 08 00 00 <code>00 19</code> 00 09 00 08 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>name_indexは0x09です。上の定数一覧によって、#9 = Utf8 AOP_CLASS_SUFFIXです。</p>
+
+<p>01B0: 03 00 02 00 07 00 08 00 00 00 19 <code>00 09</code> 00 08 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>descriptor_indexは0x08ですが、上の定数一覧によって、#8 = Utf8 Ljava/lang/String;(java.lang.Stringインスタンス)です。</p>
+
+<p>01B0: 03 00 02 00 07 00 08 00 00 00 19 00 09 <code>00 08</code> 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>次のattributes_countは0x0001です。1つの属性はあります。</p>
+
+<p>01B0: 03 00 02 00 07 00 08 00 00 00 19 00 09 00 08 <code>00</code> &hellip;&hellip;&hellip;&hellip;&hellip;.<br />
+01C0: <code>01</code> 00 0A 00 00 00 02 00 04 00 04 00 0B 00 0C 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>次の2バイトは0x000aです。上の定数プールの#10によると"ConstantValue"の属性です。<br />
+<a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.2">ConstantValue</a>の構造は以下のようです。</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">ConstantValue_attribute</span> <span class="p">{</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="n">u2</span> <span class="n">attribute_name_index</span><span class="p">;</span>
+</span><span class='line'><span class="n">u4</span> <span class="n">attribute_length</span><span class="p">;</span>
+</span><span class='line'><span class="n">u2</span> <span class="n">constantvalue_index</span><span class="p">;</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>attribute_name_indexはConstantValueの定数プールのインデックです。attribute_lengthは固定で2です。</p>
+
+<p>01C0: 01 00 0A <code>00 00 00 02</code> 00 04 00 04 00 0B 00 0C 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>constantvalue_indexは0x04です。定数プールによると、#4 = String #30 //  $$_brisk_aop_enhancedです。AOP_CLASS_SUFFIXの初期値ですね。</p>
+
+<p>01C0: 01 00 0A 00 00 00 02 <code>00 04</code> 00 04 00 0B 00 0C 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>他の変数は同じな方法で解析できます。</p>
+
+<ul>
+<li>メソッド<br />
+コンパイラで自動生成したコンストラクターを含めて、methods_countは0x04です。</li>
+</ul>
+
+
+<p>01D0: 00 <code>00 04</code> 00 01 00 0D 00 0E 00 01 00 0F 00 00 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>一番目のmethod_infoの内容を見てみましょう。method_infoの構造を上に参照できます。<br />
+access_flagsは0x01です。</p>
+
+<p>01D0: 00 00 04 <code>00 01</code> 00 0D 00 0E 00 01 00 0F 00 00 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p><a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.6">メソッドのアクセスフラグ一覧</a>によると、ACC_PUBLICは0x0001です。</p>
+
+<p>01D0: 00 00 04 00 01 <code>00 0D</code> 00 0E 00 01 00 0F 00 00 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>name_indexは0x0dです。上の定数プールによると、#13 = Utf8 &lt;init&gt;です。自動生成したデフォルト・コンストラクターです。</p>
+
+<p>01D0: 00 00 04 00 01 00 0D <code>00 0E</code> 00 01 00 0F 00 00 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>descriptor_indexは0x0eなので、定数プールの#14 = Utf8  ()Vです。デフォルト・コンストラクターはパラメータ無し、戻り値voidです。<br />
+次のattributes_countは0x01です。</p>
+
+<p>01D0: 00 00 04 00 01 00 0D 00 0E <code>00 01</code> 00 0F 00 00 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>次の2バイトはattribute_name_indexです。定数プールの0x0fは#15 = Utf8 Codeです。<br />
+それによって、属性タイプは<a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.3">Code_attribute</a>です。</p>
+
+<p>01D0: 00 00 04 00 01 00 0D 00 0E 00 01 <code>00 0F</code> 00 00 00 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>Code_attributeの構造は以下のようです。</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">Code_attribute</span> <span class="p">{</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="n">u2</span> <span class="n">attribute_name_index</span><span class="p">;</span>
+</span><span class='line'><span class="n">u4</span> <span class="n">attribute_length</span><span class="p">;</span>
+</span><span class='line'><span class="n">u2</span> <span class="n">max_stack</span><span class="p">;</span>
+</span><span class='line'><span class="n">u2</span> <span class="n">max_locals</span><span class="p">;</span>
+</span><span class='line'><span class="n">u4</span> <span class="n">code_length</span><span class="p">;</span>
+</span><span class='line'><span class="n">u1</span> <span class="n">code</span><span class="p">[</span><span class="n">code_length</span><span class="p">];</span>
+</span><span class='line'><span class="n">u2</span> <span class="n">exception_table_length</span><span class="p">;</span>
+</span><span class='line'><span class="p">{</span>   <span class="n">u2</span> <span class="n">start_pc</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">end_pc</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">handler_pc</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">catch_type</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span> <span class="n">exception_table</span><span class="p">[</span><span class="n">exception_table_length</span><span class="p">];</span>
+</span><span class='line'><span class="n">u2</span> <span class="n">attributes_count</span><span class="p">;</span>
+</span><span class='line'><span class="n">attribute_info</span> <span class="n">attributes</span><span class="p">[</span><span class="n">attributes_count</span><span class="p">];</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>かなり複雑な構造ですね。メソッドに仮想マシンの命令を表す構造体です。<br /></p>
+
+<p>01D0: 00 00 04 00 01 00 0D 00 0E 00 01 00 0F <code>00 00 00</code> &hellip;&hellip;&hellip;&hellip;&hellip;.<br />
+01E0: <code>39</code> 00 02 00 01 00 00 00 0B 2A B7 00 01 2A 10 1E 9&hellip;&hellip;..<em>&hellip;</em>..</p>
+
+<p>attribute_lengthはCode_attributeにattribute_name_indexとattribute_lengthを除いたバイト数です。<br />
+上のバイトデータによると、&lt;init&gt;のCode_attributeの長さは0x39バイトです。</p>
+
+<p>01E0: 39 <code>00 02 00 01</code> 00 00 00 0B 2A B7 00 01 2A 10 1E 9&hellip;&hellip;..<em>&hellip;</em>..</p>
+
+<p>次のmax_stackは0x02です。max_localsは0x01です。JVMでメソッドをframeに実行されます。<br />
+frameにローカル変数用の配列と操作命令スタックはあります。変数配列はメソッドパラメータ、ローカル変数（中間結果）を保存します。<br />
+操作スタックは仮想マシンの命令と操作数（変数配列からロードされる）を順番でロードして実行します。結果を変数配列仁保存し、命令と操作数をクリアし、次の命令を処理します。<br />
+メソッドのすべてのコードを実行する時、変数配列の最大長さはmax_localsと呼ばれます。操作スタックの最大長さはmax_stackと呼ばれます。<br />
+doubleとlongのデータは64ビットなので、max_stackとmax_localsを計算するときに注意しなければなりません。<br />
+詳しいJVMのランタイム仕組みは次回に解説させて頂きます。</p>
+
+<p>01E0: 39 00 02 00 01 <code>00 00 00 0B</code> 2A B7 00 01 2A 10 1E 9&hellip;&hellip;..<em>&hellip;</em>..</p>
+
+<p>code_lengthは0x0bです。メソッドコードはcode[11]に置かれます。Code_attributeの構成によって、codeタイプはu1です。<br />
+u1の範囲は0x00 ~ 0xff(0 ~ 255)です。現在約200個のJVM命令を定義しています。<br />
+exception_table_lengthとexception_tableは例外情報です。&lt;init&gt;は例外宣言がありませんので、exception_table_lengthは0です。</p>
+
+<p>01F0: B5 00 02 B1 <code>00 00</code> 00 02 00 10 00 00 00 0A 00 02 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>次のattributes_countは0x02です。</p>
+
+<p>01F0: B5 00 02 B1 00 00 <code>00 02</code> 00 10 00 00 00 0A 00 02 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>1つ目の属性のインデックは0x10です。定数プールの#16はUtf8 LineNumberTableです。</p>
+
+<p>01F0: B5 00 02 B1 00 00 00 02 <code>00 10</code> 00 00 00 0A 00 02 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p><a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#jvms-4.7.12">LineNumberTable</a>の構造は以下のようです。</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">LineNumberTable_attribute</span> <span class="p">{</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="n">u2</span> <span class="n">attribute_name_index</span><span class="p">;</span>
+</span><span class='line'><span class="n">u4</span> <span class="n">attribute_length</span><span class="p">;</span>
+</span><span class='line'><span class="n">u2</span> <span class="n">line_number_table_length</span><span class="p">;</span>
+</span><span class='line'><span class="p">{</span>   <span class="n">u2</span> <span class="n">start_pc</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">line_number</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span> <span class="n">line_number_table</span><span class="p">[</span><span class="n">line_number_table_length</span><span class="p">];</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>attribute_lengthはattribute_name_indexとattribute_length以外のバイト数です。<br />
+バイトデータによって、attribute_lengthは10(0x0a)です。</p>
+
+<p>01F0: B5 00 02 B1 00 00 00 02 00 10 <code>00 00 00 0A</code> 00 02 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>line_number_table_lengthは0x02です。</p>
+
+<p>01F0: B5 00 02 B1 00 00 00 02 00 10 00 00 00 0A *00 02` &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>line_number_tableは次の8バイトとです。start_pcはJVM命令の番号です。line_numberはソースの行番号です。</p>
+
+<p>0200: <code>00 00 00 08 00 04 00 0E</code> 00 11 00 00 00 0C 00 01 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>次の属性は定数プールの#17(0x11) = Utf8 LocalVariableTableです。</p>
+
+<p>0200: 00 00 00 08 00 04 00 0E <code>00 11</code> 00 00 00 0C 00 01 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>LocalVariableTableの構造は以下のようです。</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">LocalVariableTable_attribute</span> <span class="p">{</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="n">u2</span> <span class="n">attribute_name_index</span><span class="p">;</span>
+</span><span class='line'><span class="n">u4</span> <span class="n">attribute_length</span><span class="p">;</span>
+</span><span class='line'><span class="n">u2</span> <span class="n">local_variable_table_length</span><span class="p">;</span>
+</span><span class='line'><span class="p">{</span>   <span class="n">u2</span> <span class="n">start_pc</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">length</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">name_index</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">descriptor_index</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">index</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span> <span class="n">local_variable_table</span><span class="p">[</span><span class="n">local_variable_table_length</span><span class="p">];</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>attribute_lengthは0x0cです。local_variable_table_lengthは0x01です。local_variable_tableに1つの変数があることはわかります。</p>
+
+<p>0200: 00 00 00 08 00 04 00 0E 00 11 <code>00 00 00 0C 00 01</code> &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>次の10バイトはlocal_variable_table[1]の変数です。</p>
+
+<p>0210: <code>00 00 00 0B 00 12 00 13 00 00</code> 00 01 00 14 00 15 &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>定数プールとlocal_variable_tableの構造によって、上記のデータの意味は以下のようです。</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="p">{</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">start_pc</span><span class="p">;</span>            <span class="c1">// 0x0000</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">length</span><span class="p">;</span>              <span class="c1">// 0x000b</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">name_index</span><span class="p">;</span>          <span class="c1">// 0x0012    #18 = Utf8               this</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">descriptor_index</span><span class="p">;</span>    <span class="c1">// 0x0013    #19 = Utf8               Lnet/codemelon/brisk/demo/jvm/Sample;</span>
+</span><span class='line'>    <span class="n">u2</span> <span class="n">index</span><span class="p">;</span>               <span class="c1">// 0x0000</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>start_pc + lengthはメソッド実行の開始JVMコマンドの位置を表します。name_indexとdescriptor_indexはSampleインスタンスthisのことが分かります。<br />
+indexはthis変数がローカル変数配列の最初（インデックス0）位置に置かれることを示します。JVMではすべてのメソッド実行frameの変数配列の0にthis変数を置かれます。</p>
+
+<p>同様のように他のメソッドを解析できます。次のバイトをみってみましょう。</p>
+
+<p>0210: 00 00 00 0B 00 12 00 13 00 00 <code>00 01 00 14 00 15</code> &hellip;&hellip;&hellip;&hellip;&hellip;.</p>
+
+<p>0x0001はACC_PUBLICです。0x0014は定数プールの#20 = Utf8 initです。0x0015は定数プールの#21 = Utf8 (Ljava/lang/String;I)Vです。<br />
+public void init(String name, int age)メソッドであることがわかりますね。</p>
+
+<p>最後はattributes_countとattribute_info attributes[attributes_count]を見ます。</p>
+
+<p>02D0: 00 00 01 00 10 00 00 00 06 00 01 00 00 00 1A <code>00</code> &hellip;&hellip;&hellip;&hellip;&hellip;.<br />
+02E0: <code>01 00 19 00 00 00 02 00 1A</code>                      &hellip;&hellip;&hellip;</p>
+
+<p>attributes_countは0x0001です。属性タイプは定数プールの#25(0x0019) = Utf8 SourceFileです。
+SourceFile属性の構造は以下のようです。</p>
+
+<p><div class='bogus-wrapper'><notextile><figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">SourceFile_attribute</span> <span class="p">{</span><span class="o">&lt;/</span><span class="n">p</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">pre</span><span class="o">&gt;&lt;</span><span class="n">code</span><span class="o">&gt;</span><span class="n">u2</span> <span class="n">attribute_name_index</span><span class="p">;</span>
+</span><span class='line'><span class="n">u4</span> <span class="n">attribute_length</span><span class="p">;</span>
+</span><span class='line'><span class="n">u2</span> <span class="n">sourcefile_index</span><span class="p">;</span>
+</span><span class='line'><span class="o">&lt;/</span><span class="n">code</span><span class="o">&gt;&lt;/</span><span class="n">pre</span><span class="o">&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">&lt;</span><span class="n">p</span><span class="o">&gt;</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure></notextile></div></p>
+
+<p>attribute_lengthは固定で2です。sourcefile_indexは定数プールの#26(0x001a) Utf8 Sample.javaです。
+ソースファイルの名前はSample.javaであることはわかります。</p>
+
+<h2>まとめ</h2>
+
+<p>以上では簡単なクラスを例として、Javaクラスファイルのレイアウトを解析してみました。exception_table、annotationなどの構造を触れていません。</p>
+
+<p>詳しい内容は<a href="http://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html">Java仮想マシン仕様の第四章</a>を参照すれば良いと思います。</p>
+
+<p>次回はJVMランタイム仕組みを紹介していきたいです。JavaコードとJVMアセンブリコードを対照しながら、JVMの内部動作を考査してみます。</p>
+]]></content>
+  </entry>
+  
+</feed>
