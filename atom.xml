@@ -4,7 +4,7 @@
   <title><![CDATA[Technology of SJI]]></title>
   <link href="http://sjitech.github.io/atom.xml" rel="self"/>
   <link href="http://sjitech.github.io/"/>
-  <updated>2013-12-19T11:10:21+09:00</updated>
+  <updated>2013-12-20T16:39:07+09:00</updated>
   <id>http://sjitech.github.io/</id>
   <author>
     <name><![CDATA[株式会社SJI先端技術研究センター]]></name>
@@ -14,49 +14,90 @@
 
   
   <entry>
+    <title type="html"><![CDATA[第一回社内技術講演の資料]]></title>
+    <link href="http://sjitech.github.io/blog/2013/12/20/sji-internal-tech-talk-01/"/>
+    <updated>2013-12-20T15:48:00+09:00</updated>
+    <id>http://sjitech.github.io/blog/2013/12/20/sji-internal-tech-talk-01</id>
+    <content type="html"><![CDATA[<p>2013年12月18日の午後に第一回の社内向けの技術講演を行いました。講演資料をここで公開します。</p>
+
+<p>社外でもダウンロードできますので、一部内容を添削してアップロードしました。</p>
+
+<!-- more -->
+
+
+<h2>ビッグデータとは</h2>
+
+<p>ビッグデータの最新動向、業界事例を紹介しました。</p>
+
+<p><a href="http://sjitech.github.io/downloads/presentation/bigdata.pdf">ビッグデータとは？</a></p>
+
+<h2>CassandraからNoSQLを学ぶ</h2>
+
+<p>Cassandraの最新版を解説しながら、NoSQLの関連技術を紹介しました。アニメーションが多いですが、PPTファイルをそのままアップロードします。</p>
+
+<p><a href="http://sjitech.github.io/downloads/presentation/Nosql_Cassandra_blog.ppsx">CassandraからNoSQLを学ぶ</a></p>
+
+<p>何かご指摘があれば、コメントとかメールとかご連絡頂ければと思います。</p>
+
+<p>今年もいろいろとご指導を承り、ありがとうございました。 来年も頑張りますので、本年同様によろしくお願いいたします。</p>
+]]></content>
+  </entry>
+  
+  <entry>
     <title type="html"><![CDATA[Node.jsは予想通りオプティマイズされたか？ (大量タイマー)]]></title>
     <link href="http://sjitech.github.io/blog/2013/12/19/doesnodejsoptimized/"/>
     <updated>2013-12-19T10:34:00+09:00</updated>
     <id>http://sjitech.github.io/blog/2013/12/19/doesnodejsoptimized</id>
-    <content type="html"><![CDATA[<p>Javascriptで大量タイマーを利用した場合、普通の実装では、</p>
+    <content type="html"><![CDATA[<p>Node.jsのタイマーの使用を調査しました。</p>
 
-<pre><code>
-while(true) {  
-  node_js_check_event {  
-    すべてのタイマーを一つずつチェック  ===> 一つずつは効率悪い、オプティマイズすべき。  
-    タイムアウト付き、他のイベントをチェック (epollなど)  
-  }  
-  
-  イベントをディスパッチ...
-}
-</code></pre>
+<!-- more -->
 
 
-<p></p>
+<p>Javascriptで大量タイマーを利用した場合、普通の実装では、</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="k">while</span><span class="p">(</span><span class="kc">true</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">node_js_check_event</span> <span class="p">{</span>
+</span><span class='line'>    <span class="err">すべてのタイマーを一つずつチェック</span>  <span class="o">===&gt;</span> <span class="err">一つずつは効率悪い、オプティマイズすべき。</span>
+</span><span class='line'>    <span class="err">タイムアウト付き、他のイベントをチェック</span> <span class="p">(</span><span class="nx">epoll</span><span class="err">など</span><span class="p">)</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="err">イベントをディスパッチ</span><span class="p">...</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
 
 <p>上記「すべてのタイマーを一つずつチェック」をオプティマイズすべきと思います。<br/>
 オプティマイズ方法は、B-TREEみたいな構造でタイマーのfireTimeを保存し、<br/>
 チェックはB-TREEから最小fireTimeだけをチェックすれば終わり。</p>
 
-<p>Node.jsはどのように実装したのか？ソースを見てみると、確かにオプティマイズしました！：<br/>
-<b>[closest timer of all timers]</b><br/>
-<a href="https://github.com/joyent/node/blob/master/deps/uv/src/unix/timer.c">https://github.com/joyent/node/blob/master/deps/uv/src/unix/timer.c</a> #120</p>
+<p>Node.jsはどのように実装したのか？ソースを見てみると、確かにオプティマイズしました！：</p>
 
-<pre><code>
-RB_MIN(uv__timers, &loop->timer_handles)  
-</code></pre>
+<figure class='code'><figcaption><span>closest timer of all timers</span><a href='https://github.com/joyent/node/blob/master/deps/uv/src/unix/timer.c'>timer.c </a></figcaption> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>120</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'>  <span class="n">RB_MIN</span><span class="p">(</span><span class="n">uv__timers</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">loop</span><span class="o">-&gt;</span><span class="n">timer_handles</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
 
 
-<p><b>[pass timeout argument to poll api]</b><br/>
-<a href="https://github.com/joyent/node/blob/master/deps/uv/src/unix/core.c">https://github.com/joyent/node/blob/master/deps/uv/src/unix/core.c</a> #276</p>
 
-<pre><code>
-timeout = 0;  
-if ((mode & UV_RUN_NOWAIT) == 0)  
-    timeout = uv_backend_timeout(loop);  
 
-uv__io_poll(loop, timeout); 
-</code></pre>
+<figure class='code'><figcaption><span>pass timeout argument to poll api</span><a href='https://github.com/joyent/node/blob/master/deps/uv/src/unix/core.c'>core.c</a></figcaption> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>276</span>
+<span class='line-number'>277</span>
+<span class='line-number'>278</span>
+<span class='line-number'>279</span>
+<span class='line-number'>280</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">timeout</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span><span class='line'><span class="k">if</span> <span class="p">((</span><span class="n">mode</span> <span class="o">&amp;</span> <span class="n">UV_RUN_NOWAIT</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">timeout</span> <span class="o">=</span> <span class="n">uv_backend_timeout</span><span class="p">(</span><span class="n">loop</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">uv__io_poll</span><span class="p">(</span><span class="n">loop</span><span class="p">,</span> <span class="n">timeout</span><span class="p">);</span>
+</span></code></pre></td></tr></table></div></figure>
 
 
 <p>unixのソースですが、Windows系のソースも似ているロジックが入っています。</p>
@@ -70,8 +111,12 @@ uv__io_poll(loop, timeout);
     <link href="http://sjitech.github.io/blog/2013/12/19/ji-shi-taitoru/"/>
     <updated>2013-12-19T10:12:00+09:00</updated>
     <id>http://sjitech.github.io/blog/2013/12/19/ji-shi-taitoru</id>
-    <content type="html"><![CDATA[<p>Node.js、C、Java、Pythonの比較は複雑ですが、とりあえず、純粋な言語性能を計ってみました。後でもっと現実に近いケースで計りましょう。 <br/>
-今回のケースでは、Node.js = 0.85 C = 0.83 Java = 100+ Pythonぐらい。</p>
+    <content type="html"><![CDATA[<p>Node.js、C、Java、Pythonの比較は複雑ですが、とりあえず、純粋な言語性能を計ってみました。後でもっと現実に近いケースで計りましょう。</p>
+
+<!-- more -->
+
+
+<p>今回のケースでは、Node.js = 0.85 C = 0.83 Java = 100+ Pythonぐらい。</p>
 
 <p>厳密に言うと、今回はNode.jsの性能ではなくV8 Javascriptのです。</p>
 
@@ -87,178 +132,324 @@ uv__io_poll(loop, timeout);
 <p>限定ケースの結果ですのでいろいろ訳あり。<br/>
 例えば、C、Pythonはオプティマイズされていない。</p>
 
-<p>ソース：
-Node.js</p>
+<p>ソース：</p>
 
-<pre><code>
-/** This code was based on Google I/O 2012:
-Breaking the JavaScript Speed Limit with V8
-(http://www.youtube.com/watch?v=UJPdhx5zTaw) **/
-
-function Primes() {
-    this.prime_count = 0;
-    this.primes = new Array(50000);
-};
-
-Primes.prototype.getPrimeCount = function() { return this.prime_count; }
-Primes.prototype.getPrime = function(i) { return this.primes[i]; }
-Primes.prototype.addPrime = function(i) { this.primes[this.prime_count++] = i; }
-Primes.prototype.isPrimeDivisible = function(candidate) {
-        for (var i = 1; i &lt; this.prime_count; ++i) {
-            if ((candidate % this.primes[i]) == 0) return true;
-        }
-        return false;
-    }
-
-
-function main() {
-    p = new Primes();
-    var c = 1;
-    var st = Date.now();
-    while (p.getPrimeCount() &lt; 50000) {
-        if (!p.isPrimeDivisible(c)) {
-            p.addPrime(c);
-        }
-        c++;
-    }
-    console.log((Date.now()-st));
-    console.log(p.getPrime(p.getPrimeCount()-1));
-}
-
-main();
-</code></pre>
-
-
-<p>Java</p>
-
-<pre><code>
-import static java.lang.System.out;
-import java.util.Date;
-
-public class primes {
-
-    public static class Primes
-    {
-        public int prime_count;
-        public int[] primes = new int[50000];
-
-        public int getPrimeCount () { return this.prime_count; }
-        public int getPrime (int i) { return this.primes[i]; }
-        public void addPrime (int p) { this.primes[this.prime_count++] = p; }
-
-        public boolean isPrimeDivisible(int candidate) {
-            for (int i = 1; i &lt; this.prime_count; ++i) {
-                if ((candidate % this.primes[i]) == 0) return true;
-            }
-            return false;
-        }
-    }
-    
-    public static void main(String[] args) {
-        Primes p = new Primes();
-        int c = 1;
-        Date st = new Date();
-        while (p.getPrimeCount() &lt; 50000) {
-            if (!p.isPrimeDivisible(c)) {
-                p.addPrime(c);
-            }
-            c++;
-        }
-        out.println(new Date().getTime()-st.getTime());
-        out.println(p.getPrime(p.getPrimeCount() - 1));
-    }
-
-}
-</code></pre>
+<figure class='code'><figcaption><span>Node.js </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="cm">/** This code was based on Google I/O 2012:</span>
+</span><span class='line'><span class="cm">Breaking the JavaScript Speed Limit with V8</span>
+</span><span class='line'><span class="cm">(http://www.youtube.com/watch?v=UJPdhx5zTaw) **/</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">function</span> <span class="nx">Primes</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">this</span><span class="p">.</span><span class="nx">prime_count</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span><span class='line'>  <span class="k">this</span><span class="p">.</span><span class="nx">primes</span> <span class="o">=</span> <span class="k">new</span> <span class="nb">Array</span><span class="p">(</span><span class="mi">50000</span><span class="p">);</span>
+</span><span class='line'><span class="p">};</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">Primes</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">getPrimeCount</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">prime_count</span><span class="p">;</span> <span class="p">}</span>
+</span><span class='line'><span class="nx">Primes</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">getPrime</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">i</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">primes</span><span class="p">[</span><span class="nx">i</span><span class="p">];</span> <span class="p">}</span>
+</span><span class='line'><span class="nx">Primes</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">addPrime</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">i</span><span class="p">)</span> <span class="p">{</span> <span class="k">this</span><span class="p">.</span><span class="nx">primes</span><span class="p">[</span><span class="k">this</span><span class="p">.</span><span class="nx">prime_count</span><span class="o">++</span><span class="p">]</span> <span class="o">=</span> <span class="nx">i</span><span class="p">;</span> <span class="p">}</span>
+</span><span class='line'><span class="nx">Primes</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">isPrimeDivisible</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">candidate</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>      <span class="k">for</span> <span class="p">(</span><span class="kd">var</span> <span class="nx">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="nx">i</span> <span class="o">&amp;</span><span class="nx">lt</span><span class="p">;</span> <span class="k">this</span><span class="p">.</span><span class="nx">prime_count</span><span class="p">;</span> <span class="o">++</span><span class="nx">i</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>          <span class="k">if</span> <span class="p">((</span><span class="nx">candidate</span> <span class="o">%</span> <span class="k">this</span><span class="p">.</span><span class="nx">primes</span><span class="p">[</span><span class="nx">i</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="k">return</span> <span class="kc">true</span><span class="p">;</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>      <span class="k">return</span> <span class="kc">false</span><span class="p">;</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'><span class="kd">function</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">p</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Primes</span><span class="p">();</span>
+</span><span class='line'>  <span class="kd">var</span> <span class="nx">c</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span><span class='line'>  <span class="kd">var</span> <span class="nx">st</span> <span class="o">=</span> <span class="nb">Date</span><span class="p">.</span><span class="nx">now</span><span class="p">();</span>
+</span><span class='line'>  <span class="k">while</span> <span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nx">getPrimeCount</span><span class="p">()</span> <span class="o">&amp;</span><span class="nx">lt</span><span class="p">;</span> <span class="mi">50000</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>      <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">p</span><span class="p">.</span><span class="nx">isPrimeDivisible</span><span class="p">(</span><span class="nx">c</span><span class="p">))</span> <span class="p">{</span>
+</span><span class='line'>          <span class="nx">p</span><span class="p">.</span><span class="nx">addPrime</span><span class="p">(</span><span class="nx">c</span><span class="p">);</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>      <span class="nx">c</span><span class="o">++</span><span class="p">;</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">((</span><span class="nb">Date</span><span class="p">.</span><span class="nx">now</span><span class="p">()</span><span class="o">-</span><span class="nx">st</span><span class="p">));</span>
+</span><span class='line'>  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nx">getPrime</span><span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nx">getPrimeCount</span><span class="p">()</span><span class="o">-</span><span class="mi">1</span><span class="p">));</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">main</span><span class="p">();</span>
+</span></code></pre></td></tr></table></div></figure>
 
 
-<p>C</p>
-
-<pre><code>
-/** This code was based on Google I/O 2012: 
-Breaking the JavaScript Speed Limit with V8 
-(http://www.youtube.com/watch?v=UJPdhx5zTaw) **/
-
-#include &lt;stdio.h&gt;
-#include &lt;sys/time.h&gt;
-#include &lt;sys/types.h&gt;
-
-static int64_t microSecondOfNow() {
-    struct timeval t;
-    gettimeofday(&t, NULL);
-    return ((int64_t) t.tv_sec) * (1000 * 1000) + t.tv_usec;
-}
-
-class Primes {
-    public:
-        int getPrimeCount() const { return prime_count; }
-        int getPrime(int i) const { return primes[i]; }
-        void addPrime(int i) { primes[prime_count++] = i; }
-        
-        bool isPrimeDivisible(int candidate) {
-            for (int i = 1; i &lt; prime_count; ++i) {
-                if ((candidate % primes[i]) == 0) return true;
-            }
-            return false;
-        }
-    private:
-        volatile int prime_count;
-        volatile int primes[50000];
-};
-
-int main() {
-    Primes p;
-    int c = 1;
-    int64_t st = microSecondOfNow();
-    while (p.getPrimeCount() &lt; 50000) {
-        if (!p.isPrimeDivisible(c)) {
-            p.addPrime(c);
-        }
-        c++;
-    }
-    printf("%lld\n", (microSecondOfNow()-st)/1000);
-    printf("%d\n", p.getPrime(p.getPrimeCount() - 1));
-}
-</code></pre>
 
 
-<p>Python</p>
+<figure class='code'><figcaption><span>Java </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kn">import</span> <span class="nn">static</span> <span class="n">java</span><span class="o">.</span><span class="na">lang</span><span class="o">.</span><span class="na">System</span><span class="o">.</span><span class="na">out</span><span class="o">;</span>
+</span><span class='line'><span class="kn">import</span> <span class="nn">java.util.Date</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">primes</span> <span class="o">{</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">Primes</span>
+</span><span class='line'>  <span class="o">{</span>
+</span><span class='line'>      <span class="kd">public</span> <span class="kt">int</span> <span class="n">prime_count</span><span class="o">;</span>
+</span><span class='line'>      <span class="kd">public</span> <span class="kt">int</span><span class="o">[]</span> <span class="n">primes</span> <span class="o">=</span> <span class="k">new</span> <span class="kt">int</span><span class="o">[</span><span class="mi">50000</span><span class="o">];</span>
+</span><span class='line'>
+</span><span class='line'>      <span class="kd">public</span> <span class="kt">int</span> <span class="nf">getPrimeCount</span> <span class="o">()</span> <span class="o">{</span> <span class="k">return</span> <span class="k">this</span><span class="o">.</span><span class="na">prime_count</span><span class="o">;</span> <span class="o">}</span>
+</span><span class='line'>      <span class="kd">public</span> <span class="kt">int</span> <span class="nf">getPrime</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span><span class="o">)</span> <span class="o">{</span> <span class="k">return</span> <span class="k">this</span><span class="o">.</span><span class="na">primes</span><span class="o">[</span><span class="n">i</span><span class="o">];</span> <span class="o">}</span>
+</span><span class='line'>      <span class="kd">public</span> <span class="kt">void</span> <span class="nf">addPrime</span> <span class="o">(</span><span class="kt">int</span> <span class="n">p</span><span class="o">)</span> <span class="o">{</span> <span class="k">this</span><span class="o">.</span><span class="na">primes</span><span class="o">[</span><span class="k">this</span><span class="o">.</span><span class="na">prime_count</span><span class="o">++]</span> <span class="o">=</span> <span class="n">p</span><span class="o">;</span> <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>      <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">isPrimeDivisible</span><span class="o">(</span><span class="kt">int</span> <span class="n">candidate</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>          <span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="o">;</span> <span class="n">i</span> <span class="o">&amp;</span><span class="n">lt</span><span class="o">;</span> <span class="k">this</span><span class="o">.</span><span class="na">prime_count</span><span class="o">;</span> <span class="o">++</span><span class="n">i</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>              <span class="k">if</span> <span class="o">((</span><span class="n">candidate</span> <span class="o">%</span> <span class="k">this</span><span class="o">.</span><span class="na">primes</span><span class="o">[</span><span class="n">i</span><span class="o">])</span> <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> <span class="k">return</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'>          <span class="o">}</span>
+</span><span class='line'>          <span class="k">return</span> <span class="kc">false</span><span class="o">;</span>
+</span><span class='line'>      <span class="o">}</span>
+</span><span class='line'>  <span class="o">}</span>
+</span><span class='line'>  
+</span><span class='line'>  <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>      <span class="n">Primes</span> <span class="n">p</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Primes</span><span class="o">();</span>
+</span><span class='line'>      <span class="kt">int</span> <span class="n">c</span> <span class="o">=</span> <span class="mi">1</span><span class="o">;</span>
+</span><span class='line'>      <span class="n">Date</span> <span class="n">st</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Date</span><span class="o">();</span>
+</span><span class='line'>      <span class="k">while</span> <span class="o">(</span><span class="n">p</span><span class="o">.</span><span class="na">getPrimeCount</span><span class="o">()</span> <span class="o">&amp;</span><span class="n">lt</span><span class="o">;</span> <span class="mi">50000</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>          <span class="k">if</span> <span class="o">(!</span><span class="n">p</span><span class="o">.</span><span class="na">isPrimeDivisible</span><span class="o">(</span><span class="n">c</span><span class="o">))</span> <span class="o">{</span>
+</span><span class='line'>              <span class="n">p</span><span class="o">.</span><span class="na">addPrime</span><span class="o">(</span><span class="n">c</span><span class="o">);</span>
+</span><span class='line'>          <span class="o">}</span>
+</span><span class='line'>          <span class="n">c</span><span class="o">++;</span>
+</span><span class='line'>      <span class="o">}</span>
+</span><span class='line'>      <span class="n">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="k">new</span> <span class="n">Date</span><span class="o">().</span><span class="na">getTime</span><span class="o">()-</span><span class="n">st</span><span class="o">.</span><span class="na">getTime</span><span class="o">());</span>
+</span><span class='line'>      <span class="n">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="n">p</span><span class="o">.</span><span class="na">getPrime</span><span class="o">(</span><span class="n">p</span><span class="o">.</span><span class="na">getPrimeCount</span><span class="o">()</span> <span class="o">-</span> <span class="mi">1</span><span class="o">));</span>
+</span><span class='line'>  <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
 
-<pre><code>
-import datetime
 
-class Primes:
-    def __init__(self):
-        self.prime_count = 0
-        self.primes = [0]*50000
 
-    def getPrimeCount(self):
-        return self.prime_count
 
-    def getPrime(self, i):
-        return self.primes[i]
+<figure class='code'><figcaption><span>C </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="cm">/** This code was based on Google I/O 2012: </span>
+</span><span class='line'><span class="cm">Breaking the JavaScript Speed Limit with V8 </span>
+</span><span class='line'><span class="cm">(http://www.youtube.com/watch?v=UJPdhx5zTaw) **/</span>
+</span><span class='line'>
+</span><span class='line'><span class="cp">#include &lt;stdio.h&gt;;</span>
+</span><span class='line'><span class="cp">#include &lt;sys/time.h&gt;;</span>
+</span><span class='line'><span class="cp">#include &lt;sys/types.h&gt;;</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">static</span> <span class="kt">int64_t</span> <span class="nf">microSecondOfNow</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">struct</span> <span class="n">timeval</span> <span class="n">t</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">gettimeofday</span><span class="p">(</span><span class="o">&amp;</span><span class="n">t</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+</span><span class='line'>    <span class="k">return</span> <span class="p">((</span><span class="kt">int64_t</span><span class="p">)</span> <span class="n">t</span><span class="p">.</span><span class="n">tv_sec</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1000</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">)</span> <span class="o">+</span> <span class="n">t</span><span class="p">.</span><span class="n">tv_usec</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">class</span> <span class="n">Primes</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nl">public:</span>
+</span><span class='line'>      <span class="kt">int</span> <span class="n">getPrimeCount</span><span class="p">()</span> <span class="k">const</span> <span class="p">{</span> <span class="k">return</span> <span class="n">prime_count</span><span class="p">;</span> <span class="p">}</span>
+</span><span class='line'>      <span class="kt">int</span> <span class="n">getPrime</span><span class="p">(</span><span class="kt">int</span> <span class="n">i</span><span class="p">)</span> <span class="k">const</span> <span class="p">{</span> <span class="k">return</span> <span class="n">primes</span><span class="p">[</span><span class="n">i</span><span class="p">];</span> <span class="p">}</span>
+</span><span class='line'>      <span class="kt">void</span> <span class="n">addPrime</span><span class="p">(</span><span class="kt">int</span> <span class="n">i</span><span class="p">)</span> <span class="p">{</span> <span class="n">primes</span><span class="p">[</span><span class="n">prime_count</span><span class="o">++</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span><span class="p">;</span> <span class="p">}</span>
+</span><span class='line'>      
+</span><span class='line'>      <span class="n">bool</span> <span class="n">isPrimeDivisible</span><span class="p">(</span><span class="kt">int</span> <span class="n">candidate</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>          <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&amp;</span><span class="n">lt</span><span class="p">;</span> <span class="n">prime_count</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>              <span class="k">if</span> <span class="p">((</span><span class="n">candidate</span> <span class="o">%</span> <span class="n">primes</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="k">return</span> <span class="nb">true</span><span class="p">;</span>
+</span><span class='line'>          <span class="p">}</span>
+</span><span class='line'>          <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>  <span class="nl">private:</span>
+</span><span class='line'>      <span class="k">volatile</span> <span class="kt">int</span> <span class="n">prime_count</span><span class="p">;</span>
+</span><span class='line'>      <span class="k">volatile</span> <span class="kt">int</span> <span class="n">primes</span><span class="p">[</span><span class="mi">50000</span><span class="p">];</span>
+</span><span class='line'><span class="p">};</span>
+</span><span class='line'>
+</span><span class='line'><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">Primes</span> <span class="n">p</span><span class="p">;</span>
+</span><span class='line'>  <span class="kt">int</span> <span class="n">c</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span><span class='line'>  <span class="kt">int64_t</span> <span class="n">st</span> <span class="o">=</span> <span class="n">microSecondOfNow</span><span class="p">();</span>
+</span><span class='line'>  <span class="k">while</span> <span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">getPrimeCount</span><span class="p">()</span> <span class="o">&amp;</span><span class="n">lt</span><span class="p">;</span> <span class="mi">50000</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>      <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">p</span><span class="p">.</span><span class="n">isPrimeDivisible</span><span class="p">(</span><span class="n">c</span><span class="p">))</span> <span class="p">{</span>
+</span><span class='line'>          <span class="n">p</span><span class="p">.</span><span class="n">addPrime</span><span class="p">(</span><span class="n">c</span><span class="p">);</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>      <span class="n">c</span><span class="o">++</span><span class="p">;</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>  <span class="n">printf</span><span class="p">(</span><span class="s">&quot;%lld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">microSecondOfNow</span><span class="p">()</span><span class="o">-</span><span class="n">st</span><span class="p">)</span><span class="o">/</span><span class="mi">1000</span><span class="p">);</span>
+</span><span class='line'>  <span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">p</span><span class="p">.</span><span class="n">getPrime</span><span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">getPrimeCount</span><span class="p">()</span> <span class="o">-</span> <span class="mi">1</span><span class="p">));</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
 
-    def addPrime(self, i):
-        self.primes[self.prime_count] = i
-        self.prime_count += 1
 
-    def isPrimeDivisible(self, candidate):
-        for i in range(1, self.prime_count - 1):
-            if (candidate % self.primes[i]) == 0:
-                return True
-        return False
 
-p = Primes()
-c = 1
-st = datetime.datetime.now()
-while p.getPrimeCount() &lt; 50000:
-    if not p.isPrimeDivisible(c):
-        p.addPrime(c)
-    c += 1
-print(datetime.datetime.now()-st);
-print(p.getPrime(p.getPrimeCount()-1))
 
-</code></pre>
+<figure class='code'><figcaption><span>Python </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="kn">import</span> <span class="nn">datetime</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">class</span> <span class="nc">Primes</span><span class="p">:</span>
+</span><span class='line'>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class='line'>        <span class="bp">self</span><span class="o">.</span><span class="n">prime_count</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span class='line'>        <span class="bp">self</span><span class="o">.</span><span class="n">primes</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="mi">50000</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">def</span> <span class="nf">getPrimeCount</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class='line'>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">prime_count</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">def</span> <span class="nf">getPrime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+</span><span class='line'>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">primes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">def</span> <span class="nf">addPrime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+</span><span class='line'>        <span class="bp">self</span><span class="o">.</span><span class="n">primes</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">prime_count</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+</span><span class='line'>        <span class="bp">self</span><span class="o">.</span><span class="n">prime_count</span> <span class="o">+=</span> <span class="mi">1</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">def</span> <span class="nf">isPrimeDivisible</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">candidate</span><span class="p">):</span>
+</span><span class='line'>        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">prime_count</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+</span><span class='line'>            <span class="k">if</span> <span class="p">(</span><span class="n">candidate</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">primes</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+</span><span class='line'>                <span class="k">return</span> <span class="bp">True</span>
+</span><span class='line'>        <span class="k">return</span> <span class="bp">False</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">p</span> <span class="o">=</span> <span class="n">Primes</span><span class="p">()</span>
+</span><span class='line'><span class="n">c</span> <span class="o">=</span> <span class="mi">1</span>
+</span><span class='line'><span class="n">st</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+</span><span class='line'><span class="k">while</span> <span class="n">p</span><span class="o">.</span><span class="n">getPrimeCount</span><span class="p">()</span> <span class="o">&amp;</span><span class="n">lt</span><span class="p">;</span> <span class="mi">50000</span><span class="p">:</span>
+</span><span class='line'>    <span class="k">if</span> <span class="ow">not</span> <span class="n">p</span><span class="o">.</span><span class="n">isPrimeDivisible</span><span class="p">(</span><span class="n">c</span><span class="p">):</span>
+</span><span class='line'>        <span class="n">p</span><span class="o">.</span><span class="n">addPrime</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">c</span> <span class="o">+=</span> <span class="mi">1</span>
+</span><span class='line'><span class="k">print</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">-</span><span class="n">st</span><span class="p">);</span>
+</span><span class='line'><span class="k">print</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">getPrime</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">getPrimeCount</span><span class="p">()</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+</span></code></pre></td></tr></table></div></figure>
 
 
 

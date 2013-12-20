@@ -2,34 +2,38 @@
 <urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>
     <url>
         <loc>http://sjitech.github.io/blog/2013/08/14/how-to-write-new-post-on-octopress/</loc>
-        <lastmod>2013-12-19T09:37:49+09:00</lastmod>
+        <lastmod>2013-10-16T21:55:03+09:00</lastmod>
     </url>
     <url>
         <loc>http://sjitech.github.io/blog/2013/10/09/build-a-java-framework-from-scratch-1/</loc>
-        <lastmod>2013-12-19T09:37:49+09:00</lastmod>
+        <lastmod>2013-10-24T11:45:37+09:00</lastmod>
     </url>
     <url>
         <loc>http://sjitech.github.io/blog/2013/11/27/chef-solo-knife-solo-intro/</loc>
-        <lastmod>2013-12-19T09:37:49+09:00</lastmod>
+        <lastmod>2013-11-28T13:19:02+09:00</lastmod>
     </url>
     <url>
         <loc>http://sjitech.github.io/blog/2013/12/19/ji-shi-taitoru/</loc>
-        <lastmod>2013-12-19T10:32:43+09:00</lastmod>
+        <lastmod>2013-12-20T10:37:00+09:00</lastmod>
     </url>
     <url>
         <loc>http://sjitech.github.io/blog/2013/12/19/doesnodejsoptimized/</loc>
-        <lastmod>2013-12-19T10:34:20+09:00</lastmod>
+        <lastmod>2013-12-20T15:42:50+09:00</lastmod>
+    </url>
+    <url>
+        <loc>http://sjitech.github.io/blog/2013/12/20/sji-internal-tech-talk-01/</loc>
+        <lastmod>2013-12-20T16:37:09+09:00</lastmod>
     </url>
     <url>
         <loc>http://sjitech.github.io/blog/archives/</loc>
-        <lastmod>2013-12-19T10:34:20+09:00</lastmod>
+        <lastmod>2013-12-20T16:37:09+09:00</lastmod>
     </url>
     <url>
         <loc>http://sjitech.github.io/</loc>
-        <lastmod>2013-12-19T10:34:20+09:00</lastmod>
+        <lastmod>2013-12-20T16:37:09+09:00</lastmod>
     </url>
     <url>
         <loc>http://sjitech.github.io/robots.txt</loc>
-        <lastmod>2013-12-19T09:37:49+09:00</lastmod>
+        <lastmod>2013-10-16T21:55:03+09:00</lastmod>
     </url>
 </urlset>

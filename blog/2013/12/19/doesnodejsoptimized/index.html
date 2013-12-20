@@ -9,8 +9,8 @@
   <meta name="author" content="株式会社SJI先端技術研究センター">
 
   
-  <meta name="description" content="News, events and insights from SJI engineers.">
-  <meta name="keywords" content="Java, Android, iOS, Mobile develop, Clound computing, ruby, vim, emacs, web application, REST, Json, c/c++, Linux, software, programming, JEE, ruby, python, JavaScript, AWS, OpenStack, Hadoop, Agile">
+  <meta name="description" content="Node.jsの内部実現の確認">
+  <meta name="keywords" content="Node.js, JavaScript, NodeJS, 性能">
 
   <!-- http://t.co/dKP3o1e -->
   <meta name="HandheldFriendly" content="True">
@@ -107,45 +107,56 @@
   </header>
 
 
-<div class="entry-content"><p>Javascriptで大量タイマーを利用した場合、普通の実装では、</p>
+<div class="entry-content"><p>Node.jsのタイマーの使用を調査しました。</p>
 
-<pre><code>
-while(true) {  
-  node_js_check_event {  
-    すべてのタイマーを一つずつチェック  ===> 一つずつは効率悪い、オプティマイズすべき。  
-    タイムアウト付き、他のイベントをチェック (epollなど)  
-  }  
-  
-  イベントをディスパッチ...
-}
-</code></pre>
+<!-- more -->
 
 
-<p></p>
+<p>Javascriptで大量タイマーを利用した場合、普通の実装では、</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="k">while</span><span class="p">(</span><span class="kc">true</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">node_js_check_event</span> <span class="p">{</span>
+</span><span class='line'>    <span class="err">すべてのタイマーを一つずつチェック</span>  <span class="o">===&gt;</span> <span class="err">一つずつは効率悪い、オプティマイズすべき。</span>
+</span><span class='line'>    <span class="err">タイムアウト付き、他のイベントをチェック</span> <span class="p">(</span><span class="nx">epoll</span><span class="err">など</span><span class="p">)</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="err">イベントをディスパッチ</span><span class="p">...</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
 
 <p>上記「すべてのタイマーを一つずつチェック」をオプティマイズすべきと思います。<br/>
 オプティマイズ方法は、B-TREEみたいな構造でタイマーのfireTimeを保存し、<br/>
 チェックはB-TREEから最小fireTimeだけをチェックすれば終わり。</p>
 
-<p>Node.jsはどのように実装したのか？ソースを見てみると、確かにオプティマイズしました！：<br/>
-<b>[closest timer of all timers]</b><br/>
-<a href="https://github.com/joyent/node/blob/master/deps/uv/src/unix/timer.c">https://github.com/joyent/node/blob/master/deps/uv/src/unix/timer.c</a> #120</p>
+<p>Node.jsはどのように実装したのか？ソースを見てみると、確かにオプティマイズしました！：</p>
 
-<pre><code>
-RB_MIN(uv__timers, &loop->timer_handles)  
-</code></pre>
+<figure class='code'><figcaption><span>closest timer of all timers</span><a href='https://github.com/joyent/node/blob/master/deps/uv/src/unix/timer.c'>timer.c </a></figcaption> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>120</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'>  <span class="n">RB_MIN</span><span class="p">(</span><span class="n">uv__timers</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">loop</span><span class="o">-&gt;</span><span class="n">timer_handles</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
 
 
-<p><b>[pass timeout argument to poll api]</b><br/>
-<a href="https://github.com/joyent/node/blob/master/deps/uv/src/unix/core.c">https://github.com/joyent/node/blob/master/deps/uv/src/unix/core.c</a> #276</p>
 
-<pre><code>
-timeout = 0;  
-if ((mode & UV_RUN_NOWAIT) == 0)  
-    timeout = uv_backend_timeout(loop);  
 
-uv__io_poll(loop, timeout); 
-</code></pre>
+<figure class='code'><figcaption><span>pass timeout argument to poll api</span><a href='https://github.com/joyent/node/blob/master/deps/uv/src/unix/core.c'>core.c</a></figcaption> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>276</span>
+<span class='line-number'>277</span>
+<span class='line-number'>278</span>
+<span class='line-number'>279</span>
+<span class='line-number'>280</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="n">timeout</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span><span class='line'><span class="k">if</span> <span class="p">((</span><span class="n">mode</span> <span class="o">&amp;</span> <span class="n">UV_RUN_NOWAIT</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">timeout</span> <span class="o">=</span> <span class="n">uv_backend_timeout</span><span class="p">(</span><span class="n">loop</span><span class="p">);</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">uv__io_poll</span><span class="p">(</span><span class="n">loop</span><span class="p">,</span> <span class="n">timeout</span><span class="p">);</span>
+</span></code></pre></td></tr></table></div></figure>
 
 
 <p>unixのソースですが、Windows系のソースも似ているロジックが入っています。</p>
@@ -159,7 +170,7 @@ uv__io_poll(loop, timeout);
       
   
 
-<span class="byline author vcard">Posted by <span class="fn">株式会社SJI先端技術研究センター</span></span>
+<span class="byline author vcard">Posted by <span class="fn">Jin Qian</span></span>
 
       
 
@@ -175,6 +186,12 @@ uv__io_poll(loop, timeout);
 
 <time datetime="2013-12-19T10:34:00+09:00" pubdate data-updated="true">2013年12月19日</time>
       
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/tips/'>Tips</a>
+  
+</span>
 
 
     </p>
@@ -196,6 +213,8 @@ uv__io_poll(loop, timeout);
       
         <a class="basic-alignment left" href="/blog/2013/12/19/ji-shi-taitoru/" title="Previous Post: Node.js vs C vs Java vs Python">&laquo; Node.js vs C vs Java vs Python</a>
       
+      
+        <a class="basic-alignment right" href="/blog/2013/12/20/sji-internal-tech-talk-01/" title="Next Post: 第一回社内技術講演の資料">第一回社内技術講演の資料 &raquo;</a>
       
     </p>
   </footer>
@@ -220,11 +239,15 @@ uv__io_poll(loop, timeout);
 </section>
 <section>
   <h1>Categories</h1>
-    <ul id="category-list"><li><a href='/blog/categories/devops/'>DevOps (1)</a></li><li><a href='/blog/categories/java/'>Java (1)</a></li><li><a href='/blog/categories/opensource/'>OpenSource (1)</a></li></ul>
+    <ul id="category-list"><li><a href='/blog/categories/devops/'>DevOps (1)</a></li><li><a href='/blog/categories/java/'>Java (1)</a></li><li><a href='/blog/categories/opensource/'>OpenSource (1)</a></li><li><a href='/blog/categories/tips/'>Tips (3)</a></li></ul>
 </section>
 <section>
   <h1>Recent Posts</h1>
   <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2013/12/20/sji-internal-tech-talk-01/">第一回社内技術講演の資料</a>
+      </li>
     
       <li class="post">
         <a href="/blog/2013/12/19/doesnodejsoptimized/">Node.jsは予想通りオプティマイズされたか？ (大量タイマー)</a>
@@ -240,10 +263,6 @@ uv__io_poll(loop, timeout);
     
       <li class="post">
         <a href="/blog/2013/10/09/build-a-java-framework-from-scratch-1/">Build a Java Framework From Scratch(1)</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2013/08/14/how-to-write-new-post-on-octopress/">How to Write New Post on Octopress</a>
       </li>
     
   </ul>
