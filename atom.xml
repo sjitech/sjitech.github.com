@@ -4,7 +4,11 @@
   <title><![CDATA[Technology of SJI]]></title>
   <link href="http://sjitech.github.io/atom.xml" rel="self"/>
   <link href="http://sjitech.github.io/"/>
+<<<<<<< HEAD
   <updated>2014-03-19T15:19:41+09:00</updated>
+=======
+  <updated>2013-12-20T16:39:07+09:00</updated>
+>>>>>>> a6a94a26b2f26e6333702245e59e8d6607b4f2f0
   <id>http://sjitech.github.io/</id>
   <author>
     <name><![CDATA[株式会社SJI先端技術研究センター]]></name>
@@ -14,6 +18,7 @@
 
   
   <entry>
+<<<<<<< HEAD
     <title type="html"><![CDATA[第二回社内技術講演の資料]]></title>
     <link href="http://sjitech.github.io/blog/2014/03/19/sji-internal-tech-talk-02/"/>
     <updated>2014-03-19T14:39:00+09:00</updated>
@@ -40,6 +45,8 @@
   </entry>
   
   <entry>
+=======
+>>>>>>> a6a94a26b2f26e6333702245e59e8d6607b4f2f0
     <title type="html"><![CDATA[第一回社内技術講演の資料]]></title>
     <link href="http://sjitech.github.io/blog/2013/12/20/sji-internal-tech-talk-01/"/>
     <updated>2013-12-20T15:48:00+09:00</updated>
