@@ -1,14 +1,18 @@
 ---
 layout: post
+author: Jin Qian
 title: "Node.js vs C vs Java vs Python"
 date: 2013-12-19 10:12
 comments: true
-categories: 
-description: 
-keywords: 
+categories: [Tips]
+tags: [Node.js JavaScript]
+description: Node.jsとJava、Cの性能比較
+keywords: Node.js, JavaScript, NodeJS, 性能
 ---
 
 Node.js、C、Java、Pythonの比較は複雑ですが、とりあえず、純粋な言語性能を計ってみました。後でもっと現実に近いケースで計りましょう。   
+<!-- more -->
+
 今回のケースでは、Node.js = 0.85 C = 0.83 Java = 100+ Pythonぐらい。  
   
 厳密に言うと、今回はNode.jsの性能ではなくV8 Javascriptのです。  
@@ -26,8 +30,8 @@ Node.js、C、Java、Pythonの比較は複雑ですが、とりあえず、純�
 例えば、C、Pythonはオプティマイズされていない。  
 
 ソース：
-Node.js  
-<pre><code>
+
+{% codeblock lang:javascript Node.js %}
 /** This code was based on Google I/O 2012:
 Breaking the JavaScript Speed Limit with V8
 (http://www.youtube.com/watch?v=UJPdhx5zTaw) **/
@@ -63,10 +67,9 @@ function main() {
 }
 
 main();
-</code></pre>
+{% endcodeblock %}
   
-Java  
-<pre><code>
+{% codeblock lang:java Java %}
 import static java.lang.System.out;
 import java.util.Date;
 
@@ -104,17 +107,16 @@ public class primes {
 	}
 
 }
-</code></pre>
+{% endcodeblock %}
   
-C  
-<pre><code>
+{% codeblock lang:c C %}
 /** This code was based on Google I/O 2012: 
 Breaking the JavaScript Speed Limit with V8 
 (http://www.youtube.com/watch?v=UJPdhx5zTaw) **/
 
-#include &lt;stdio.h&gt;
-#include &lt;sys/time.h&gt;
-#include &lt;sys/types.h&gt;
+#include <stdio.h>;
+#include <sys/time.h>;
+#include <sys/types.h>;
 
 static int64_t microSecondOfNow() {
     struct timeval t;
@@ -152,10 +154,9 @@ int main() {
 	printf("%lld\n", (microSecondOfNow()-st)/1000);
 	printf("%d\n", p.getPrime(p.getPrimeCount() - 1));
 }
-</code></pre>
+{% endcodeblock %}
   
-Python  
-<pre><code>
+{% codeblock lang:python Python %}
 import datetime
 
 class Primes:
@@ -189,5 +190,5 @@ while p.getPrimeCount() &lt; 50000:
 print(datetime.datetime.now()-st);
 print(p.getPrime(p.getPrimeCount()-1))
 
-</code></pre>
+{% endcodeblock %}
 

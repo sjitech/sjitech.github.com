@@ -51,14 +51,20 @@ module Jekyll
     include TemplateWrapper
     CaptionUrlTitle = /(\S[\S\s]*)\s+(https?:\/\/\S+|\/\S+)\s*(.+)?/i
     Caption = /(\S[\S\s]*)/
+    Startline = /\s*start:(\d+)/i
     def initialize(tag_name, markup, tokens)
       @title = nil
       @caption = nil
       @filetype = nil
       @highlight = true
+      @startlinenum = 1
       if markup =~ /\s*lang:(\S+)/i
         @filetype = $1
         markup = markup.sub(/\s*lang:(\S+)/i,'')
+      end
+      if markup =~ Startline
+        @startlinenum = $1
+        markup = markup.sub(Startline,'')
       end
       if markup =~ CaptionUrlTitle
         @file = $1
@@ -79,9 +85,9 @@ module Jekyll
       source = "<figure class='code'>"
       source += @caption if @caption
       if @filetype
-        source += " #{highlight(code, @filetype)}</figure>"
+        source += " #{highlight(code, @filetype, @startlinenum)}</figure>"
       else
-        source += "#{tableize_code(code.lstrip.rstrip.gsub(/</,'&lt;'))}</figure>"
+        source += "#{tableize_code(code.lstrip.rstrip.gsub(/</,'&lt;'), @startlinenum)}</figure>"
       end
       source = safe_wrap(source)
       source = context['pygments_prefix'] + source if context['pygments_prefix']
