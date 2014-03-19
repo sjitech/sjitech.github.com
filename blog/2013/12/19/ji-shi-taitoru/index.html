@@ -1,0 +1,678 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="ja"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Node.js vs C vs Java vs Python - Technology of SJI</title>
+  <meta name="author" content="株式会社SJI先端技術研究センター">
+
+  
+  <meta name="description" content="Node.jsとJava、Cの性能比較">
+  <meta name="keywords" content="Node.js, JavaScript, NodeJS, 性能">
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://sjitech.github.io/blog/2013/12/19/ji-shi-taitoru">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Technology of SJI" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/lib/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-43272596-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Technology of SJI</a></h1>
+  
+    <h2>株式会社SJIの技術ブログ</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.co.jp/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:sjitech.github.io" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/projects">Projects</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+  <li><a href="/about">About</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Node.js vs C vs Java vs Python</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-12-19T10:12:00+09:00" pubdate data-updated="true">2013年12月19日</time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>Node.js、C、Java、Pythonの比較は複雑ですが、とりあえず、純粋な言語性能を計ってみました。後でもっと現実に近いケースで計りましょう。</p>
+
+<!-- more -->
+
+
+<p>今回のケースでは、Node.js = 0.85 C = 0.83 Java = 100+ Pythonぐらい。</p>
+
+<p>厳密に言うと、今回はNode.jsの性能ではなくV8 Javascriptのです。</p>
+
+<p>環境: Mac OS X 10.9, Intel Core i7 CPU 4 Core<br/>
+テスト内容：オブジェクト割当、配列割当、素数計算<br/>
+実行時状況：<br/>
+　　CPU：皆 0% (たまにCは100%)<br/>
+　　スレッド:<br/>
+　　　　Node.js 4個, Cは1個。Javaは17個。<br/>
+　　　　※ javascriptは単スレッドですが、それを管理するために別スレッドがあります、数はCPU数とは関係なくほぼ4固定です。<br/>
+　　　　JavaはCより早いのは、自動的に並列されるかもしれません？</p>
+
+<p>限定ケースの結果ですのでいろいろ訳あり。<br/>
+例えば、C、Pythonはオプティマイズされていない。</p>
+
+<p>ソース：</p>
+
+<figure class='code'><figcaption><span>Node.js </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+</pre></td><td class='code'><pre><code class='javascript'><span class='line'><span class="cm">/** This code was based on Google I/O 2012:</span>
+</span><span class='line'><span class="cm">Breaking the JavaScript Speed Limit with V8</span>
+</span><span class='line'><span class="cm">(http://www.youtube.com/watch?v=UJPdhx5zTaw) **/</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">function</span> <span class="nx">Primes</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>  <span class="k">this</span><span class="p">.</span><span class="nx">prime_count</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span><span class='line'>  <span class="k">this</span><span class="p">.</span><span class="nx">primes</span> <span class="o">=</span> <span class="k">new</span> <span class="nb">Array</span><span class="p">(</span><span class="mi">50000</span><span class="p">);</span>
+</span><span class='line'><span class="p">};</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">Primes</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">getPrimeCount</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span> <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">prime_count</span><span class="p">;</span> <span class="p">}</span>
+</span><span class='line'><span class="nx">Primes</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">getPrime</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">i</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">primes</span><span class="p">[</span><span class="nx">i</span><span class="p">];</span> <span class="p">}</span>
+</span><span class='line'><span class="nx">Primes</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">addPrime</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">i</span><span class="p">)</span> <span class="p">{</span> <span class="k">this</span><span class="p">.</span><span class="nx">primes</span><span class="p">[</span><span class="k">this</span><span class="p">.</span><span class="nx">prime_count</span><span class="o">++</span><span class="p">]</span> <span class="o">=</span> <span class="nx">i</span><span class="p">;</span> <span class="p">}</span>
+</span><span class='line'><span class="nx">Primes</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">isPrimeDivisible</span> <span class="o">=</span> <span class="kd">function</span><span class="p">(</span><span class="nx">candidate</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>      <span class="k">for</span> <span class="p">(</span><span class="kd">var</span> <span class="nx">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="nx">i</span> <span class="o">&amp;</span><span class="nx">lt</span><span class="p">;</span> <span class="k">this</span><span class="p">.</span><span class="nx">prime_count</span><span class="p">;</span> <span class="o">++</span><span class="nx">i</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>          <span class="k">if</span> <span class="p">((</span><span class="nx">candidate</span> <span class="o">%</span> <span class="k">this</span><span class="p">.</span><span class="nx">primes</span><span class="p">[</span><span class="nx">i</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="k">return</span> <span class="kc">true</span><span class="p">;</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>      <span class="k">return</span> <span class="kc">false</span><span class="p">;</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'><span class="kd">function</span> <span class="nx">main</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nx">p</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Primes</span><span class="p">();</span>
+</span><span class='line'>  <span class="kd">var</span> <span class="nx">c</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span><span class='line'>  <span class="kd">var</span> <span class="nx">st</span> <span class="o">=</span> <span class="nb">Date</span><span class="p">.</span><span class="nx">now</span><span class="p">();</span>
+</span><span class='line'>  <span class="k">while</span> <span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nx">getPrimeCount</span><span class="p">()</span> <span class="o">&amp;</span><span class="nx">lt</span><span class="p">;</span> <span class="mi">50000</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>      <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">p</span><span class="p">.</span><span class="nx">isPrimeDivisible</span><span class="p">(</span><span class="nx">c</span><span class="p">))</span> <span class="p">{</span>
+</span><span class='line'>          <span class="nx">p</span><span class="p">.</span><span class="nx">addPrime</span><span class="p">(</span><span class="nx">c</span><span class="p">);</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>      <span class="nx">c</span><span class="o">++</span><span class="p">;</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">((</span><span class="nb">Date</span><span class="p">.</span><span class="nx">now</span><span class="p">()</span><span class="o">-</span><span class="nx">st</span><span class="p">));</span>
+</span><span class='line'>  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nx">getPrime</span><span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nx">getPrimeCount</span><span class="p">()</span><span class="o">-</span><span class="mi">1</span><span class="p">));</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="nx">main</span><span class="p">();</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>Java </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kn">import</span> <span class="nn">static</span> <span class="n">java</span><span class="o">.</span><span class="na">lang</span><span class="o">.</span><span class="na">System</span><span class="o">.</span><span class="na">out</span><span class="o">;</span>
+</span><span class='line'><span class="kn">import</span> <span class="nn">java.util.Date</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">primes</span> <span class="o">{</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">Primes</span>
+</span><span class='line'>  <span class="o">{</span>
+</span><span class='line'>      <span class="kd">public</span> <span class="kt">int</span> <span class="n">prime_count</span><span class="o">;</span>
+</span><span class='line'>      <span class="kd">public</span> <span class="kt">int</span><span class="o">[]</span> <span class="n">primes</span> <span class="o">=</span> <span class="k">new</span> <span class="kt">int</span><span class="o">[</span><span class="mi">50000</span><span class="o">];</span>
+</span><span class='line'>
+</span><span class='line'>      <span class="kd">public</span> <span class="kt">int</span> <span class="nf">getPrimeCount</span> <span class="o">()</span> <span class="o">{</span> <span class="k">return</span> <span class="k">this</span><span class="o">.</span><span class="na">prime_count</span><span class="o">;</span> <span class="o">}</span>
+</span><span class='line'>      <span class="kd">public</span> <span class="kt">int</span> <span class="nf">getPrime</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span><span class="o">)</span> <span class="o">{</span> <span class="k">return</span> <span class="k">this</span><span class="o">.</span><span class="na">primes</span><span class="o">[</span><span class="n">i</span><span class="o">];</span> <span class="o">}</span>
+</span><span class='line'>      <span class="kd">public</span> <span class="kt">void</span> <span class="nf">addPrime</span> <span class="o">(</span><span class="kt">int</span> <span class="n">p</span><span class="o">)</span> <span class="o">{</span> <span class="k">this</span><span class="o">.</span><span class="na">primes</span><span class="o">[</span><span class="k">this</span><span class="o">.</span><span class="na">prime_count</span><span class="o">++]</span> <span class="o">=</span> <span class="n">p</span><span class="o">;</span> <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>      <span class="kd">public</span> <span class="kt">boolean</span> <span class="nf">isPrimeDivisible</span><span class="o">(</span><span class="kt">int</span> <span class="n">candidate</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>          <span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="o">;</span> <span class="n">i</span> <span class="o">&amp;</span><span class="n">lt</span><span class="o">;</span> <span class="k">this</span><span class="o">.</span><span class="na">prime_count</span><span class="o">;</span> <span class="o">++</span><span class="n">i</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>              <span class="k">if</span> <span class="o">((</span><span class="n">candidate</span> <span class="o">%</span> <span class="k">this</span><span class="o">.</span><span class="na">primes</span><span class="o">[</span><span class="n">i</span><span class="o">])</span> <span class="o">==</span> <span class="mi">0</span><span class="o">)</span> <span class="k">return</span> <span class="kc">true</span><span class="o">;</span>
+</span><span class='line'>          <span class="o">}</span>
+</span><span class='line'>          <span class="k">return</span> <span class="kc">false</span><span class="o">;</span>
+</span><span class='line'>      <span class="o">}</span>
+</span><span class='line'>  <span class="o">}</span>
+</span><span class='line'>  
+</span><span class='line'>  <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>      <span class="n">Primes</span> <span class="n">p</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Primes</span><span class="o">();</span>
+</span><span class='line'>      <span class="kt">int</span> <span class="n">c</span> <span class="o">=</span> <span class="mi">1</span><span class="o">;</span>
+</span><span class='line'>      <span class="n">Date</span> <span class="n">st</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Date</span><span class="o">();</span>
+</span><span class='line'>      <span class="k">while</span> <span class="o">(</span><span class="n">p</span><span class="o">.</span><span class="na">getPrimeCount</span><span class="o">()</span> <span class="o">&amp;</span><span class="n">lt</span><span class="o">;</span> <span class="mi">50000</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>          <span class="k">if</span> <span class="o">(!</span><span class="n">p</span><span class="o">.</span><span class="na">isPrimeDivisible</span><span class="o">(</span><span class="n">c</span><span class="o">))</span> <span class="o">{</span>
+</span><span class='line'>              <span class="n">p</span><span class="o">.</span><span class="na">addPrime</span><span class="o">(</span><span class="n">c</span><span class="o">);</span>
+</span><span class='line'>          <span class="o">}</span>
+</span><span class='line'>          <span class="n">c</span><span class="o">++;</span>
+</span><span class='line'>      <span class="o">}</span>
+</span><span class='line'>      <span class="n">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="k">new</span> <span class="n">Date</span><span class="o">().</span><span class="na">getTime</span><span class="o">()-</span><span class="n">st</span><span class="o">.</span><span class="na">getTime</span><span class="o">());</span>
+</span><span class='line'>      <span class="n">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="n">p</span><span class="o">.</span><span class="na">getPrime</span><span class="o">(</span><span class="n">p</span><span class="o">.</span><span class="na">getPrimeCount</span><span class="o">()</span> <span class="o">-</span> <span class="mi">1</span><span class="o">));</span>
+</span><span class='line'>  <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>C </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+</pre></td><td class='code'><pre><code class='c'><span class='line'><span class="cm">/** This code was based on Google I/O 2012: </span>
+</span><span class='line'><span class="cm">Breaking the JavaScript Speed Limit with V8 </span>
+</span><span class='line'><span class="cm">(http://www.youtube.com/watch?v=UJPdhx5zTaw) **/</span>
+</span><span class='line'>
+</span><span class='line'><span class="cp">#include &lt;stdio.h&gt;;</span>
+</span><span class='line'><span class="cp">#include &lt;sys/time.h&gt;;</span>
+</span><span class='line'><span class="cp">#include &lt;sys/types.h&gt;;</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">static</span> <span class="kt">int64_t</span> <span class="nf">microSecondOfNow</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>    <span class="k">struct</span> <span class="n">timeval</span> <span class="n">t</span><span class="p">;</span>
+</span><span class='line'>    <span class="n">gettimeofday</span><span class="p">(</span><span class="o">&amp;</span><span class="n">t</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+</span><span class='line'>    <span class="k">return</span> <span class="p">((</span><span class="kt">int64_t</span><span class="p">)</span> <span class="n">t</span><span class="p">.</span><span class="n">tv_sec</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1000</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">)</span> <span class="o">+</span> <span class="n">t</span><span class="p">.</span><span class="n">tv_usec</span><span class="p">;</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">class</span> <span class="n">Primes</span> <span class="p">{</span>
+</span><span class='line'>  <span class="nl">public:</span>
+</span><span class='line'>      <span class="kt">int</span> <span class="n">getPrimeCount</span><span class="p">()</span> <span class="k">const</span> <span class="p">{</span> <span class="k">return</span> <span class="n">prime_count</span><span class="p">;</span> <span class="p">}</span>
+</span><span class='line'>      <span class="kt">int</span> <span class="n">getPrime</span><span class="p">(</span><span class="kt">int</span> <span class="n">i</span><span class="p">)</span> <span class="k">const</span> <span class="p">{</span> <span class="k">return</span> <span class="n">primes</span><span class="p">[</span><span class="n">i</span><span class="p">];</span> <span class="p">}</span>
+</span><span class='line'>      <span class="kt">void</span> <span class="n">addPrime</span><span class="p">(</span><span class="kt">int</span> <span class="n">i</span><span class="p">)</span> <span class="p">{</span> <span class="n">primes</span><span class="p">[</span><span class="n">prime_count</span><span class="o">++</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span><span class="p">;</span> <span class="p">}</span>
+</span><span class='line'>      
+</span><span class='line'>      <span class="n">bool</span> <span class="n">isPrimeDivisible</span><span class="p">(</span><span class="kt">int</span> <span class="n">candidate</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>          <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="n">i</span> <span class="o">&amp;</span><span class="n">lt</span><span class="p">;</span> <span class="n">prime_count</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>              <span class="k">if</span> <span class="p">((</span><span class="n">candidate</span> <span class="o">%</span> <span class="n">primes</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="k">return</span> <span class="nb">true</span><span class="p">;</span>
+</span><span class='line'>          <span class="p">}</span>
+</span><span class='line'>          <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>  <span class="nl">private:</span>
+</span><span class='line'>      <span class="k">volatile</span> <span class="kt">int</span> <span class="n">prime_count</span><span class="p">;</span>
+</span><span class='line'>      <span class="k">volatile</span> <span class="kt">int</span> <span class="n">primes</span><span class="p">[</span><span class="mi">50000</span><span class="p">];</span>
+</span><span class='line'><span class="p">};</span>
+</span><span class='line'>
+</span><span class='line'><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">Primes</span> <span class="n">p</span><span class="p">;</span>
+</span><span class='line'>  <span class="kt">int</span> <span class="n">c</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span><span class='line'>  <span class="kt">int64_t</span> <span class="n">st</span> <span class="o">=</span> <span class="n">microSecondOfNow</span><span class="p">();</span>
+</span><span class='line'>  <span class="k">while</span> <span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">getPrimeCount</span><span class="p">()</span> <span class="o">&amp;</span><span class="n">lt</span><span class="p">;</span> <span class="mi">50000</span><span class="p">)</span> <span class="p">{</span>
+</span><span class='line'>      <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">p</span><span class="p">.</span><span class="n">isPrimeDivisible</span><span class="p">(</span><span class="n">c</span><span class="p">))</span> <span class="p">{</span>
+</span><span class='line'>          <span class="n">p</span><span class="p">.</span><span class="n">addPrime</span><span class="p">(</span><span class="n">c</span><span class="p">);</span>
+</span><span class='line'>      <span class="p">}</span>
+</span><span class='line'>      <span class="n">c</span><span class="o">++</span><span class="p">;</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'>  <span class="n">printf</span><span class="p">(</span><span class="s">&quot;%lld</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">microSecondOfNow</span><span class="p">()</span><span class="o">-</span><span class="n">st</span><span class="p">)</span><span class="o">/</span><span class="mi">1000</span><span class="p">);</span>
+</span><span class='line'>  <span class="n">printf</span><span class="p">(</span><span class="s">&quot;%d</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span> <span class="n">p</span><span class="p">.</span><span class="n">getPrime</span><span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">getPrimeCount</span><span class="p">()</span> <span class="o">-</span> <span class="mi">1</span><span class="p">));</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>Python </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="kn">import</span> <span class="nn">datetime</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">class</span> <span class="nc">Primes</span><span class="p">:</span>
+</span><span class='line'>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class='line'>        <span class="bp">self</span><span class="o">.</span><span class="n">prime_count</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span class='line'>        <span class="bp">self</span><span class="o">.</span><span class="n">primes</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="mi">50000</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">def</span> <span class="nf">getPrimeCount</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span class='line'>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">prime_count</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">def</span> <span class="nf">getPrime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+</span><span class='line'>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">primes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">def</span> <span class="nf">addPrime</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+</span><span class='line'>        <span class="bp">self</span><span class="o">.</span><span class="n">primes</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">prime_count</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+</span><span class='line'>        <span class="bp">self</span><span class="o">.</span><span class="n">prime_count</span> <span class="o">+=</span> <span class="mi">1</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">def</span> <span class="nf">isPrimeDivisible</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">candidate</span><span class="p">):</span>
+</span><span class='line'>        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">prime_count</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+</span><span class='line'>            <span class="k">if</span> <span class="p">(</span><span class="n">candidate</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">primes</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+</span><span class='line'>                <span class="k">return</span> <span class="bp">True</span>
+</span><span class='line'>        <span class="k">return</span> <span class="bp">False</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">p</span> <span class="o">=</span> <span class="n">Primes</span><span class="p">()</span>
+</span><span class='line'><span class="n">c</span> <span class="o">=</span> <span class="mi">1</span>
+</span><span class='line'><span class="n">st</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+</span><span class='line'><span class="k">while</span> <span class="n">p</span><span class="o">.</span><span class="n">getPrimeCount</span><span class="p">()</span> <span class="o">&amp;</span><span class="n">lt</span><span class="p">;</span> <span class="mi">50000</span><span class="p">:</span>
+</span><span class='line'>    <span class="k">if</span> <span class="ow">not</span> <span class="n">p</span><span class="o">.</span><span class="n">isPrimeDivisible</span><span class="p">(</span><span class="n">c</span><span class="p">):</span>
+</span><span class='line'>        <span class="n">p</span><span class="o">.</span><span class="n">addPrime</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">c</span> <span class="o">+=</span> <span class="mi">1</span>
+</span><span class='line'><span class="k">print</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">-</span><span class="n">st</span><span class="p">);</span>
+</span><span class='line'><span class="k">print</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">getPrime</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">getPrimeCount</span><span class="p">()</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Jin Qian</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-12-19T10:12:00+09:00" pubdate data-updated="true">2013年12月19日</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/tips/'>Tips</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://sjitech.github.io/blog/2013/12/19/ji-shi-taitoru/" data-via="sjitech" data-counturl="http://sjitech.github.io/blog/2013/12/19/ji-shi-taitoru/" >Tweet</a>
+  
+  
+  <div class="g-plusone" data-size="medium"></div>
+  
+  
+    <div class="fb-like" data-send="true" data-width="450" data-show-faces="false"></div>
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2013/11/27/chef-solo-knife-solo-intro/" title="Previous Post: Chef soloとKnife soloで環境構築を自動化">&laquo; Chef soloとKnife soloで環境構築を自動化</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2013/12/19/doesnodejsoptimized/" title="Next Post: Node.jsは予想通りオプティマイズされたか？ (大量タイマー)">Node.jsは予想通りオプティマイズされたか？ (大量タイマー) &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>About Us</h1>
+  <p>
+  <a href="http://www.sji-inc.jp">株式会社SJI</a>エンジニアブログ<br /><br />
+   株式会社SJI先端技術研究センター及び開発部門のエンジニアが、日々の業務で培った開発ノウハウや裏話などをお届けするブログです。
+  </p>
+</section>
+<section>
+  <h1>Categories</h1>
+    <ul id="category-list"><li><a href='/blog/categories/devops/'>DevOps (1)</a></li><li><a href='/blog/categories/java/'>Java (1)</a></li><li><a href='/blog/categories/opensource/'>OpenSource (1)</a></li><li><a href='/blog/categories/tips/'>Tips (4)</a></li></ul>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2014/03/19/sji-internal-tech-talk-02/">第二回社内技術講演の資料</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/12/20/sji-internal-tech-talk-01/">第一回社内技術講演の資料</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/12/19/doesnodejsoptimized/">Node.jsは予想通りオプティマイズされたか？ (大量タイマー)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/12/19/ji-shi-taitoru/">Node.js vs C vs Java vs Python</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/11/27/chef-solo-knife-solo-intro/">Chef soloとKnife Soloで環境構築を自動化</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/sjitech">@sjitech</a> on GitHub
+  
+  <script type="text/javascript">
+    $(document).ready(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'sjitech',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+<section>
+  <h1>Links</h1>
+  <ul>
+    <li>
+      <a href="http://www.sji-inc.jp/">株式会社SJI</a>
+    </li>
+    <li>
+      <a href="http://github.com/">GitHub</a>
+    </li>
+  </ul>
+</section>
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 - 株式会社SJI先端技術研究センター -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+<script language="javaScript">
+$(document).ready( function () {
+   $("a[href^='http']:not([href*='" + location.hostname + "'])").attr('target', '_blank');
+   $("table:has(thead)").each(function() {
+       if (!$(this).hasClass("datalist")) {
+           $(this).addClass("datalist");
+       }
+   });
+})
+</script>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'sjitech';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://sjitech.github.io/blog/2013/12/19/ji-shi-taitoru/';
+        var disqus_url = 'http://sjitech.github.io/blog/2013/12/19/ji-shi-taitoru/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) {return;}
+  js = d.createElement(s); js.id = id; js.async = true;
+  js.src = "//connect.facebook.net/en_US/all.js#appId=212934732101925&xfbml=1";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+
+
+  <script type="text/javascript">
+    (function() {
+      var script = document.createElement('script'); script.type = 'text/javascript'; script.async = true;
+      script.src = 'https://apis.google.com/js/plusone.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(script, s);
+    })();
+  </script>
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,537 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="ja"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>How to write new post on octopress - Technology of SJI</title>
+  <meta name="author" content="株式会社SJI先端技術研究センター">
+
+  
+  <meta name="description" content="Octopress環境構築">
+  <meta name="keywords" content="octopress">
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://sjitech.github.io/blog/2013/08/14/how-to-write-new-post-on-octopress">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Technology of SJI" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/lib/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-43272596-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Technology of SJI</a></h1>
+  
+    <h2>株式会社SJIの技術ブログ</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.co.jp/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:sjitech.github.io" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/projects">Projects</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+  <li><a href="/about">About</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">How to Write New Post on Octopress</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-08-14T14:14:00+09:00" pubdate data-updated="true">2013年08月14日</time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>ここでOctopressで新規記事を投稿する方法を紹介する。<br />
+Octopressを知っていない方もいると思うが、始まる前に少しOctopressを紹介してから進めましょう。</p>
+
+<!-- more -->
+
+
+<h2>Octopressとは？</h2>
+
+<p><a href="http://octopress.org/">Octopress</a>は最近人気上昇のブログエンジンである。特にhackerたちに流行している。膨大なWordPressに対して不満をもって、より簡単、hackerらしいブログツールを望んでいる中でOctopressを生み出した。<br />
+Octopressはrubyとgitを利用して、<a href="http://ja.wikipedia.org/wiki/Markdown">Markdown</a>記法のtextをhtmlページに変換する。<a href="https://github.com/">Github</a>のpage serviceを利用して、簡単にブログを公開できる。Githubを利用しなくてもrsync、<a href="https://www.heroku.com/">Heroku</a>のpage serivceでもブログを構築できる。<br />
+ここでGithubのpage serviceを利用する前提で本ブログに投稿の作業を解説する。</p>
+
+<h2>環境設定</h2>
+
+<p>Windows環境はruby gemの相性がよくないので、Mac OSXまたはLinux環境を推奨する。<br />
+ruby環境は<a href="https://rvm.io/">RVM</a>と<a href="http://rbenv.org/">rbenv</a>があるが、ここでMac OSXのrbenvを例として解説する。</p>
+
+<h4>Octopressの環境構築</h4>
+
+<p>まず、Octopressの<a href="http://octopress.org/docs/setup/">ドキュメント</a>を参考してください。<br />
+事前準備：</p>
+
+<ul>
+<li>Git</li>
+<li>Ruby 1.9.3以上(rbenvでインストール)</li>
+</ul>
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>rbenv install 1.9.3-p194
+</span><span class='line'><span class="nv">$ </span>rbenv versions <span class="c"># インストールされたrubyバージョンを確認</span>
+</span><span class='line'><span class="nv">$ </span>rbenv global 1.9.3-p194 <span class="c"># 1.9.3のバージョンを使用</span>
+</span><span class='line'><span class="nv">$ </span>rbenv version <span class="c"># 現在ruby versionを調べる</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>sjitechブログ取得</h4>
+
+<p>Githubからブログのソースを取得する。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>git clone https://github.com/sjitech/sjitech.github.com.git
+</span><span class='line'><span class="nv">$ </span><span class="nb">cd </span>sjitech.github.com
+</span><span class='line'><span class="nv">$ </span>git checkout <span class="nb">source</span> <span class="c"># ブランチを切り替え</span>
+</span><span class='line'><span class="nv">$ </span>ruby --version <span class="c"># 現在ruby versionを調べる</span>
+</span><span class='line'><span class="nv">$ </span>gem install bundler <span class="c"># 依存ライブラリをインストール</span>
+</span><span class='line'><span class="nv">$ </span>rbenv rehash
+</span><span class='line'><span class="nv">$ </span>bundle install
+</span><span class='line'><span class="nv">$ </span>rake setup_github_pages <span class="c"># デプロイ準備フォルダーの作成</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>新規記事</h2>
+
+<h4>新記事の追加</h4>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span><span class="nb">cd </span>sjitech.github.com
+</span><span class='line'><span class="nv">$ </span>rake new_post<span class="o">[</span><span class="s2">&quot;記事タイトル&quot;</span><span class="o">]</span> <span class="c"># Creates source/_posts/yyyy-MM-dd-記事タイトル.markdown</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>markdown編集</h4>
+
+<p>markdownは幾つかのオンラインエディタ(例：<a href="http://markable.in/">markable</a>)を利用できる。Macなら<a href="http://mouapp.com/">Mou</a>を強く推奨する。<br />
+markdown文法は<a href="http://daringfireball.net/projects/markdown/syntax.php">JOHN GRUBERのブログ</a>に参考ください。和訳は<a href="http://blog.2310.net/archives/6">ここ</a>にご参考ください。<br /></p>
+
+<h5>コードブロック</h5>
+
+<p>Octopressにコードブロックは以下のように挿入する。</p>
+
+<pre><code>``` ruby
+puts 'hello markdown!'
+```
+</code></pre>
+
+<p>上記のコードは以下のように表示される。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">puts</span> <span class="s1">&#39;hello markdown!&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>またはtagを使用する。</p>
+
+<pre><code>{% codeblock [title] [lang:language] [url] [link text] %}
+code snippet
+{% endcodeblock %}
+</code></pre>
+
+<p>例：</p>
+
+<pre><code>{% codeblock Time to be Awesome - awesome.rb %}
+puts "Awesome!" unless lame
+{% endcodeblock %}
+</code></pre>
+
+<p>以下のように表示する。</p>
+
+<figure class='code'><figcaption><span>Time to be Awesome - awesome.rb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='rb'><span class='line'><span class="nb">puts</span> <span class="s2">&quot;Awesome!&quot;</span> <span class="k">unless</span> <span class="n">lame</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h5>画像</h5>
+
+<p>tagを使う。</p>
+
+<pre><code>{% img [class names] /path/to/image [width] [height] [title text [alt text]] %}
+</code></pre>
+
+<p>例：</p>
+
+<pre><code>{% img http://www.sji-inc.jp/Portals/0/images/index/top-img02.jpg %}
+{% img left /images/sji_logo.png #2 %}
+{% img right /images/sji_outline.jpg Shinagawa Seaside East Tower #3 %}
+</code></pre>
+
+<p>中央寄せに表示する画像：<br />
+<img src="http://www.sji-inc.jp/Portals/0/images/index/top-img02.jpg"><br /></p>
+
+<br />
+
+
+<p><img class="left" src="/images/sji_logo.png" title="#2" >
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+左寄せに表示する画像<br />
+<img class="right" src="/images/sji_outline.jpg" title="Shinagawa Seaside East Tower #3" ><br />
+右寄せに表示する画像<br />
+右寄せに表示する画像<br />
+右寄せに表示する画像<br />
+右寄せに表示する画像<br />
+右寄せに表示する画像<br /></p>
+
+<p>画像ファイルをsource/imagesフォルダーに置いてください。</p>
+
+<h5>改行</h5>
+
+<p>markdownにhtmlタグも使えるが、極力的に避けたほうがいいと思う。ただ、改行の時に&lt;br /&gt;を使っても良い。</p>
+
+<h4>途中の内容をプレビュー</h4>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>rake generate
+</span><span class='line'><span class="nv">$ </span>rake preview
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>とすれば、<a href="http://localhost:4000">http://localhost:4000</a>で確認できる。</p>
+
+<h2>投稿公開</h2>
+
+<p>記事を書き終えたら</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>rake gen_deploy
+</span><span class='line'><span class="nv">$ </span>rake deploy <span class="c"># sourceブランチをmasterブランチにマージし、githubにpushする</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>deploy途中にgithubアカウントとパスワードの入力を求める。</p>
+
+<p>最後にsourceブランチも一緒にgithubにpushしましょう。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>git add .
+</span><span class='line'><span class="nv">$ </span>git commit -m <span class="s2">&quot;add new post 記事タイトル&quot;</span>
+</span><span class='line'><span class="nv">$ </span>git push origin <span class="nb">source</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>では、さっそく記事を投稿しましょう。</p>
+
+<h2>参考リンク</h2>
+
+<ul>
+<li><a href="http://tokkonopapa.github.io/blog/2011/12/30/octopress-on-github-and-bitbucket/">Octopressのインストールから運用管理まで</a></li>
+<li><a href="http://kojika17.com/2013/01/starting-markdown.html">Markdown記法</a></li>
+<li><a href="http://blog.4uing.net/octopress-post/">Octopressで記事を投稿するまでの手順</a></li>
+</ul>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Haidong Wang</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-08-14T14:14:00+09:00" pubdate data-updated="true">2013年08月14日</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/opensource/'>OpenSource</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="http://sjitech.github.io/blog/2013/08/14/how-to-write-new-post-on-octopress/" data-via="sjitech" data-counturl="http://sjitech.github.io/blog/2013/08/14/how-to-write-new-post-on-octopress/" >Tweet</a>
+  
+  
+  <div class="g-plusone" data-size="medium"></div>
+  
+  
+    <div class="fb-like" data-send="true" data-width="450" data-show-faces="false"></div>
+  
+</div>
+
+    
+    <p class="meta">
+      
+      
+        <a class="basic-alignment right" href="/blog/2013/10/09/build-a-java-framework-from-scratch-1/" title="Next Post: Build a Java framework from scratch(1)">Build a Java framework from scratch(1) &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>About Us</h1>
+  <p>
+  <a href="http://www.sji-inc.jp">株式会社SJI</a>エンジニアブログ<br /><br />
+   株式会社SJI先端技術研究センター及び開発部門のエンジニアが、日々の業務で培った開発ノウハウや裏話などをお届けするブログです。
+  </p>
+</section>
+<section>
+  <h1>Categories</h1>
+    <ul id="category-list"><li><a href='/blog/categories/devops/'>DevOps (1)</a></li><li><a href='/blog/categories/java/'>Java (1)</a></li><li><a href='/blog/categories/opensource/'>OpenSource (1)</a></li><li><a href='/blog/categories/tips/'>Tips (4)</a></li></ul>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2014/03/19/sji-internal-tech-talk-02/">第二回社内技術講演の資料</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/12/20/sji-internal-tech-talk-01/">第一回社内技術講演の資料</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/12/19/doesnodejsoptimized/">Node.jsは予想通りオプティマイズされたか？ (大量タイマー)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/12/19/ji-shi-taitoru/">Node.js vs C vs Java vs Python</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/11/27/chef-solo-knife-solo-intro/">Chef soloとKnife Soloで環境構築を自動化</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/sjitech">@sjitech</a> on GitHub
+  
+  <script type="text/javascript">
+    $(document).ready(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'sjitech',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+<section>
+  <h1>Links</h1>
+  <ul>
+    <li>
+      <a href="http://www.sji-inc.jp/">株式会社SJI</a>
+    </li>
+    <li>
+      <a href="http://github.com/">GitHub</a>
+    </li>
+  </ul>
+</section>
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 - 株式会社SJI先端技術研究センター -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+<script language="javaScript">
+$(document).ready( function () {
+   $("a[href^='http']:not([href*='" + location.hostname + "'])").attr('target', '_blank');
+   $("table:has(thead)").each(function() {
+       if (!$(this).hasClass("datalist")) {
+           $(this).addClass("datalist");
+       }
+   });
+})
+</script>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'sjitech';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://sjitech.github.io/blog/2013/08/14/how-to-write-new-post-on-octopress/';
+        var disqus_url = 'http://sjitech.github.io/blog/2013/08/14/how-to-write-new-post-on-octopress/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) {return;}
+  js = d.createElement(s); js.id = id; js.async = true;
+  js.src = "//connect.facebook.net/en_US/all.js#appId=212934732101925&xfbml=1";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+
+
+  <script type="text/javascript">
+    (function() {
+      var script = document.createElement('script'); script.type = 'text/javascript'; script.async = true;
+      script.src = 'https://apis.google.com/js/plusone.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(script, s);
+    })();
+  </script>
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
